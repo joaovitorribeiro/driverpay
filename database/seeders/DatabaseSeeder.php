@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use App\Support\Roles;
+use App\Support\SupabaseAuthAdminClient;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -70,6 +71,38 @@ class DatabaseSeeder extends Seeder
             if (! $user->hasRole($userToSeed['role'])) {
                 $user->assignRole($userToSeed['role']);
             }
+        }
+
+        $seedSupabaseAuthUsers = filter_var(
+            env('SEED_SUPABASE_AUTH_USERS', false),
+            FILTER_VALIDATE_BOOL
+        );
+        if (! $seedSupabaseAuthUsers) {
+            return;
+        }
+
+        $client = SupabaseAuthAdminClient::fromEnv();
+        if (! $client) {
+            return;
+        }
+
+        foreach ($usersToSeed as $userToSeed) {
+            $email = $userToSeed['email'];
+            if (! is_string($email) || trim($email) === '') {
+                continue;
+            }
+
+            $password = $userToSeed['password'];
+            if (! is_string($password) || trim($password) === '') {
+                continue;
+            }
+
+            $client->createUserIfMissing(
+                $email,
+                $password,
+                is_string($userToSeed['name']) ? $userToSeed['name'] : null,
+                true
+            );
         }
     }
 }
