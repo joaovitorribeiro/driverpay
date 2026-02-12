@@ -27,6 +27,7 @@
   - scheduler: `php artisan schedule:work`
 - Redis como serviço separado no Coolify
 - Banco: Supabase Pooler (transaction) com `DB_SSLMODE=require` e `DB_EMULATE_PREPARES=true`
+- Importante (Cloudflare + Traefik): setar `APP_URL=https://SEU_DOMINIO` e `SESSION_SECURE_COOKIE=true`
 
 ## About Laravel
 
