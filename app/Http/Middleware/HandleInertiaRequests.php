@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\File;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -19,7 +20,17 @@ class HandleInertiaRequests extends Middleware
      */
     public function version(Request $request): ?string
     {
-        return parent::version($request);
+        $manifest = public_path('build/manifest.json');
+        if (File::exists($manifest)) {
+            return md5_file($manifest) ?: (parent::version($request) ?? '0');
+        }
+
+        $hot = public_path('hot');
+        if (File::exists($hot)) {
+            return md5(File::get($hot)) ?: (parent::version($request) ?? '0');
+        }
+
+        return parent::version($request) ?? '0';
     }
 
     /**
@@ -38,8 +49,14 @@ class HandleInertiaRequests extends Middleware
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'role' => $user->getRoleNames()->first(),
                 ] : null,
             ],
+            'can' => $user ? [
+                'viewLogs' => $user->can('logs.view'),
+                'deleteRecords' => $user->can('records.delete'),
+                'manageUsers' => $user->can('users.manage'),
+            ] : [],
         ];
     }
 }

@@ -8,22 +8,7 @@ services:
       - ./:/var/www/html
       - vendor-data:/var/www/html/vendor
     environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      APP_URL: http://localhost:8080
       PHP_CLI_SERVER_WORKERS: 4
-      DB_CONNECTION: pgsql
-      DB_HOST: pgbouncer
-      DB_PORT: 6432
-      DB_DATABASE: driverpay
-      DB_USERNAME: driverpay
-      DB_PASSWORD: driverpay
-      CACHE_STORE: redis
-      QUEUE_CONNECTION: redis
-      SESSION_DRIVER: redis
-      REDIS_CLIENT: phpredis
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
     depends_on:
       pgbouncer:
         condition: service_started
@@ -34,8 +19,9 @@ services:
     command: >
       sh -lc "
         chmod -R 777 storage bootstrap/cache;
+        if [ ! -f .env ]; then cp .env.example .env; fi;
         if [ ! -f vendor/autoload.php ]; then composer install --no-interaction --prefer-dist; fi;
-        php artisan migrate --force;
+        DB_HOST=db DB_PORT=5432 php artisan migrate --force;
         php artisan serve --host=0.0.0.0 --port=8000
       "
 

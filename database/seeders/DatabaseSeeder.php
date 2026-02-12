@@ -17,9 +17,18 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        $user = User::query()->where('email', 'test@example.com')->first();
+        if (! $user) {
+            $user = User::factory()->create([
+                'name' => 'Test User',
+                'email' => 'test@example.com',
+            ]);
+        }
+
+        $this->call(RolePermissionSeeder::class);
+
+        if ($user->roles()->count() === 0) {
+            $user->assignRole(\App\Support\Roles::MASTER);
+        }
     }
 }
