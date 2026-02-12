@@ -3,6 +3,9 @@ import laravel from 'laravel-vite-plugin';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+    define: {
+        __VITE_USE_POLLING__: JSON.stringify(process.env.VITE_USE_POLLING || ''),
+    },
     plugins: [
         laravel({
             input: 'resources/js/app.jsx',
@@ -25,6 +28,14 @@ export default defineConfig({
             ],
         },
         watch: {
+            usePolling:
+                process.env.VITE_USE_POLLING === '1' ||
+                process.env.VITE_USE_POLLING === 'true',
+            interval:
+                process.env.VITE_USE_POLLING === '1' ||
+                process.env.VITE_USE_POLLING === 'true'
+                    ? 250
+                    : undefined,
             ignored: [
                 '**/storage/**',
                 '**/bootstrap/cache/**',
