@@ -54,9 +54,15 @@ class RolePermissionSeeder extends Seeder
             Permissions::COSTS_UPDATE_OWN,
         ]);
 
-        $firstUser = User::query()->orderBy('id')->first();
-        if ($firstUser && $firstUser->roles()->count() === 0) {
-            $firstUser->assignRole(Roles::MASTER);
+        $assignFirstUserAsMaster = filter_var(
+            env('SEED_ASSIGN_FIRST_USER_MASTER', false),
+            FILTER_VALIDATE_BOOL
+        );
+        if ($assignFirstUserAsMaster) {
+            $firstUser = User::query()->orderBy('id')->first();
+            if ($firstUser && $firstUser->roles()->count() === 0) {
+                $firstUser->assignRole(Roles::MASTER);
+            }
         }
     }
 }
