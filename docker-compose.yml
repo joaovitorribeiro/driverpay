@@ -1,0 +1,95 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - vendor-data:/var/www/html/vendor
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:8080
+      PHP_CLI_SERVER_WORKERS: 4
+      DB_CONNECTION: pgsql
+      DB_HOST: pgbouncer
+      DB_PORT: 6432
+      DB_DATABASE: driverpay
+      DB_USERNAME: driverpay
+      DB_PASSWORD: driverpay
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      SESSION_DRIVER: redis
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      pgbouncer:
+        condition: service_started
+      redis:
+        condition: service_started
+    ports:
+      - "8080:8000"
+    command: >
+      sh -lc "
+        chmod -R 777 storage bootstrap/cache;
+        if [ ! -f vendor/autoload.php ]; then composer install --no-interaction --prefer-dist; fi;
+        php artisan migrate --force;
+        php artisan serve --host=0.0.0.0 --port=8000
+      "
+
+  vite:
+    image: node:22-alpine
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - node-modules-data:/var/www/html/node_modules
+    environment:
+      VITE_PORT: 5173
+      VITE_HMR_HOST: localhost
+    ports:
+      - "5173:5173"
+    command: >
+      sh -lc "
+        if [ ! -f node_modules/.bin/vite ]; then npm ci; fi;
+        npm run dev -- --host 0.0.0.0 --port 5173 --strictPort
+      "
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: driverpay
+      POSTGRES_USER: driverpay
+      POSTGRES_PASSWORD: driverpay
+      POSTGRES_INITDB_ARGS: --auth-host=md5 --auth-local=md5
+    command: ["postgres", "-c", "password_encryption=md5"]
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U driverpay -d driverpay"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./docker/pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./docker/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    ports:
+      - "6432:6432"
+    command: ["pgbouncer", "/etc/pgbouncer/pgbouncer.ini"]
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+
+volumes:
+  db-data:
+  vendor-data:
+  node-modules-data:
