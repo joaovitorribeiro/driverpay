@@ -2,7 +2,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import UsersTable from '@/Pages/Users/Partials/UsersTable';
 import { Head } from '@inertiajs/react';
 
-export default function UsersIndex({ users, roles, canAssignMaster }) {
+export default function UsersIndex({ users, roles, canAssignMaster, canManageRoles }) {
     return (
         <AdminLayout
             header={
@@ -11,8 +11,8 @@ export default function UsersIndex({ users, roles, canAssignMaster }) {
                         Usuários
                     </h2>
                     <div className="mt-1 text-sm text-gray-500">
-                        Admin pode gerenciar cargos, mas não pode promover para
-                        master.
+                        Admin tem visão e acompanhamento. Alteração de cargos é
+                        apenas no master.
                     </div>
                 </div>
             }
@@ -25,10 +25,10 @@ export default function UsersIndex({ users, roles, canAssignMaster }) {
                         users={users}
                         roles={roles}
                         canAssignMaster={canAssignMaster}
+                        canManageRoles={canManageRoles}
                     />
                 </div>
             </div>
         </AdminLayout>
     );
 }
-

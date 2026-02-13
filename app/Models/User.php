@@ -10,6 +10,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use App\Support\Roles;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Support\Carbon;
 
 class User extends Authenticatable
 {
@@ -47,6 +48,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'is_pro' => 'boolean',
+            'pro_bonus_until' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -61,6 +63,11 @@ class User extends Authenticatable
         return $this->hasOne(DriverSetting::class);
     }
 
+    public function referrals(): HasMany
+    {
+        return $this->hasMany(User::class, 'referred_by_user_id');
+    }
+
     public function hasActiveSubscription(): bool
     {
         return $this->subscriptions()
@@ -73,6 +80,51 @@ class User extends Authenticatable
             ->exists();
     }
 
+    public function isPaidPro(): bool
+    {
+        if ((bool) $this->is_pro) {
+            return true;
+        }
+
+        return $this->hasActiveSubscription();
+    }
+
+    public function proAccessUntil(): ?Carbon
+    {
+        if ($this->hasRole(Roles::MASTER) || $this->hasRole(Roles::ADMIN)) {
+            return null;
+        }
+
+        $subscriptionEnd = $this->subscriptions()
+            ->whereIn('status', ['active', 'trialing', 'grace_period'])
+            ->max('current_period_end_at');
+
+        $end = $subscriptionEnd ? Carbon::parse($subscriptionEnd) : null;
+        $bonus = $this->pro_bonus_until ? Carbon::parse($this->pro_bonus_until) : null;
+
+        if (! $end) {
+            return $bonus;
+        }
+
+        if (! $bonus) {
+            return $end;
+        }
+
+        return $end->greaterThan($bonus) ? $end : $bonus;
+    }
+
+    public function proDaysRemaining(): ?int
+    {
+        $until = $this->proAccessUntil();
+        if (! $until) {
+            return null;
+        }
+
+        $diff = now()->startOfDay()->diffInDays($until->startOfDay(), false);
+
+        return $diff > 0 ? $diff : 0;
+    }
+
     public function isProAccess(): bool
     {
         if ($this->hasRole(Roles::MASTER) || $this->hasRole(Roles::ADMIN)) {
@@ -83,6 +135,10 @@ class User extends Authenticatable
             return true;
         }
 
-        return $this->hasActiveSubscription();
+        if ($this->hasActiveSubscription()) {
+            return true;
+        }
+
+        return $this->pro_bonus_until !== null && $this->pro_bonus_until->isFuture();
     }
 }

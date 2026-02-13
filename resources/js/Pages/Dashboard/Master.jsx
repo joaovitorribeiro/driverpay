@@ -16,7 +16,118 @@ function StatCard({ title, value, subtitle }) {
     );
 }
 
-export default function MasterDashboard({ metrics, latest }) {
+function DriversTable({ drivers }) {
+    const items = drivers?.items ?? [];
+
+    const formatDate = (iso) => {
+        if (!iso) return '-';
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '-';
+        return d.toLocaleDateString('pt-BR');
+    };
+
+    return (
+        <div className="rounded-xl border border-gray-200 bg-white">
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+                <div>
+                    <div className="text-sm font-semibold text-gray-900">
+                        Motoristas
+                    </div>
+                    <div className="mt-1 text-xs text-gray-500">
+                        Visão completa: Pro, expiração e status por usuário
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Link
+                        href={route('users.index')}
+                        className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                    >
+                        Ver usuários
+                    </Link>
+                </div>
+            </div>
+
+            <div className="grid gap-3 border-b border-gray-200 px-5 py-4 sm:grid-cols-4">
+                <StatCard title="Total" value={drivers?.total ?? 0} />
+                <StatCard title="Pro" value={drivers?.pro ?? 0} />
+                <StatCard title="Gratuito" value={drivers?.free ?? 0} />
+                <StatCard title="Expira em 7d" value={drivers?.expiring_7d ?? 0} />
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-700">
+                                Motorista
+                            </th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-700">
+                                Plano
+                            </th>
+                            <th className="px-5 py-3 text-left font-semibold text-gray-700">
+                                Expira
+                            </th>
+                            <th className="px-5 py-3 text-right font-semibold text-gray-700">
+                                Dias
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                        {items.length ? (
+                            items.map((u) => (
+                                <tr key={u.id} className="hover:bg-gray-50">
+                                    <td className="px-5 py-3">
+                                        <div className="font-medium text-gray-900">
+                                            {u.name}
+                                        </div>
+                                        <div className="text-xs text-gray-500">
+                                            {u.email}
+                                        </div>
+                                    </td>
+                                    <td className="px-5 py-3">
+                                        <span
+                                            className={
+                                                (u.plan === 'pro'
+                                                    ? 'bg-emerald-100 text-emerald-800'
+                                                    : 'bg-gray-100 text-gray-700') +
+                                                ' inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold'
+                                            }
+                                        >
+                                            {u.plan === 'pro'
+                                                ? 'Pro'
+                                                : 'Gratuito'}
+                                        </span>
+                                    </td>
+                                    <td className="px-5 py-3 text-gray-700">
+                                        {u.plan === 'pro' && u.pro_source === 'manual'
+                                            ? 'Sem expiração'
+                                            : formatDate(u.expires_at)}
+                                    </td>
+                                    <td className="px-5 py-3 text-right font-semibold text-gray-900">
+                                        {u.plan === 'pro' && u.pro_source === 'manual'
+                                            ? '—'
+                                            : u.days_remaining ?? '—'}
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
+                            <tr>
+                                <td
+                                    className="px-5 py-8 text-sm text-gray-600"
+                                    colSpan={4}
+                                >
+                                    Nenhum motorista encontrado.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
+export default function MasterDashboard({ metrics, latest, drivers }) {
     return (
         <AdminLayout
             header={
@@ -30,12 +141,6 @@ export default function MasterDashboard({ metrics, latest }) {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Link
-                            href={route('costs.index')}
-                            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                        >
-                            Ver custos
-                        </Link>
                         <Link
                             href={route('logs.index')}
                             className="rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-black"
@@ -72,17 +177,13 @@ export default function MasterDashboard({ metrics, latest }) {
                         />
                     </div>
 
+                    {drivers ? <DriversTable drivers={drivers} /> : null}
+
                     <div className="rounded-xl border border-gray-200 bg-white">
                         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
                             <div className="text-sm font-semibold text-gray-900">
                                 Últimos lançamentos
                             </div>
-                            <Link
-                                href={route('costs.create')}
-                                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
-                            >
-                                Novo custo
-                            </Link>
                         </div>
                         <div className="divide-y divide-gray-200">
                             {(latest ?? []).length ? (

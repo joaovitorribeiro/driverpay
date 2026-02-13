@@ -24,6 +24,9 @@ class UserManagementController extends Controller
                 'role' => $user->getRoleNames()->first(),
             ]);
 
+        $actor = $request->user();
+        $canManageRoles = $actor?->hasRole(Roles::MASTER) ?? false;
+
         return Inertia::render($this->page($request), [
             'users' => $users,
             'roles' => [
@@ -31,7 +34,8 @@ class UserManagementController extends Controller
                 Roles::ADMIN,
                 Roles::DRIVER,
             ],
-            'canAssignMaster' => $request->user()?->hasRole(Roles::MASTER) ?? false,
+            'canAssignMaster' => $canManageRoles,
+            'canManageRoles' => $canManageRoles,
         ]);
     }
 
@@ -39,13 +43,13 @@ class UserManagementController extends Controller
     {
         $actor = $request->user();
 
+        if (! $actor || ! $actor->hasRole(Roles::MASTER)) {
+            abort(403);
+        }
+
         $data = $request->validate([
             'role' => ['required', 'string', Rule::in([Roles::MASTER, Roles::ADMIN, Roles::DRIVER])],
         ]);
-
-        if ($data['role'] === Roles::MASTER && ! $actor->hasRole(Roles::MASTER)) {
-            abort(403);
-        }
 
         $user->syncRoles([$data['role']]);
 
@@ -63,4 +67,3 @@ class UserManagementController extends Controller
         return 'Users/Admin/Index';
     }
 }
-

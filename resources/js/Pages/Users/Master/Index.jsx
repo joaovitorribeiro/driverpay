@@ -2,7 +2,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import UsersTable from '@/Pages/Users/Partials/UsersTable';
 import { Head } from '@inertiajs/react';
 
-export default function UsersIndex({ users, roles, canAssignMaster }) {
+export default function UsersIndex({ users, roles, canAssignMaster, canManageRoles }) {
     return (
         <AdminLayout
             header={
@@ -25,6 +25,7 @@ export default function UsersIndex({ users, roles, canAssignMaster }) {
                         users={users}
                         roles={roles}
                         canAssignMaster={canAssignMaster}
+                        canManageRoles={canManageRoles}
                     />
                 </div>
             </div>

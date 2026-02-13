@@ -1,5 +1,5 @@
 import Enter from '@/Components/Auth/Enter';
 
-export default function Register() {
-    return <Enter mode="register" />;
+export default function Register({ referral }) {
+    return <Enter mode="register" referral={referral} />;
 }

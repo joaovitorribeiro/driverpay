@@ -33,9 +33,11 @@ export default function Edit({ mustVerifyEmail, status }) {
                         <UpdatePasswordForm className="max-w-xl" />
                     </div>
 
-                    <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
-                        <DeleteUserForm className="max-w-xl" />
-                    </div>
+                    {role === 'motoristas' ? (
+                        <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
+                            <DeleteUserForm className="max-w-xl" />
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </Layout>

@@ -87,7 +87,7 @@ su -s /bin/sh postgres -c "pgbouncer -v /etc/pgbouncer/pgbouncer.ini" &
 
 php artisan config:clear --no-ansi
 php artisan migrate --force --no-ansi
-php artisan db:seed --class=Database\\Seeders\\RolePermissionSeeder --force --no-ansi
+php artisan db:seed --force --no-ansi
 
 php artisan queue:work --sleep=1 --tries=1 --timeout=0 --no-ansi &
 rm -f public/hot

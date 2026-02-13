@@ -1,7 +1,12 @@
 import { router } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
-export default function UsersTable({ users, roles, canAssignMaster }) {
+export default function UsersTable({
+    users,
+    roles,
+    canAssignMaster,
+    canManageRoles,
+}) {
     const rows = users?.data ?? [];
     const initial = useMemo(() => {
         const map = {};
@@ -52,6 +57,7 @@ export default function UsersTable({ users, roles, canAssignMaster }) {
                                 <td className="px-4 py-3">
                                     <select
                                         value={selected[u.id] ?? ''}
+                                        disabled={!canManageRoles}
                                         onChange={(e) =>
                                             setSelected((prev) => ({
                                                 ...prev,
@@ -81,6 +87,7 @@ export default function UsersTable({ users, roles, canAssignMaster }) {
                                     <button
                                         type="button"
                                         disabled={
+                                            !canManageRoles ||
                                             (selected[u.id] ?? '') ===
                                             (u.role ?? '')
                                         }
@@ -103,4 +110,3 @@ export default function UsersTable({ users, roles, canAssignMaster }) {
         </div>
     );
 }
-

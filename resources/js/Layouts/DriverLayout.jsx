@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 export default function DriverLayout({ header, children }) {
     const user = usePage().props.auth.user;
     const isPro = !!usePage().props.billing?.is_pro;
+    const daysRemaining = usePage().props.billing?.days_remaining;
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -105,7 +106,13 @@ export default function DriverLayout({ header, children }) {
                         href={route('pro')}
                         className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 px-5 text-xs font-bold tracking-wider text-emerald-950 hover:bg-emerald-400"
                     >
-                        {isPro ? 'PRO' : 'UPGRADE'}
+                        {isPro
+                            ? `PRO${
+                                  typeof daysRemaining === 'number'
+                                      ? ` (${daysRemaining} dias)`
+                                      : ''
+                              }`
+                            : 'UPGRADE'}
                     </Link>
                 </div>
             </div>

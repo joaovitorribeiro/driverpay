@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(RolePermissionSeeder::class);
+        $this->call(AdminMasterSeeder::class);
 
         $seedExampleUsers = filter_var(
             env('SEED_EXAMPLE_USERS', app()->environment(['local', 'testing'])),

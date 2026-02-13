@@ -4,7 +4,12 @@ import TextInput from '@/Components/TextInput';
 import AuthShell from '@/Components/Auth/AuthShell';
 import { Head, Link, useForm } from '@inertiajs/react';
 
-export default function Enter({ mode = 'login', status, canResetPassword }) {
+export default function Enter({
+    mode = 'login',
+    status,
+    canResetPassword,
+    referral,
+}) {
     const isRegister = mode === 'register';
 
     const loginForm = useForm({
@@ -18,7 +23,7 @@ export default function Enter({ mode = 'login', status, canResetPassword }) {
         email: '',
         password: '',
         password_confirmation: '',
-        referral: '',
+        referral: referral ?? '',
     });
 
     const submit = (e) => {

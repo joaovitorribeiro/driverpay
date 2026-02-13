@@ -1,7 +1,10 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DriverAccountController;
 use App\Http\Controllers\DriverCostController;
+use App\Http\Controllers\DriverReferController;
+use App\Http\Controllers\DriverSettingsController;
 use App\Http\Controllers\LogViewerController;
 use App\Http\Controllers\ProController;
 use App\Http\Controllers\ProfileController;
@@ -38,17 +41,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/billing/google/start', [ProController::class, 'start'])->name('billing.google.start');
     Route::get('/billing/google/manage', [ProController::class, 'manage'])->name('billing.google.manage');
 
-    Route::get('/refer', function () {
-        return Inertia::render('Driver/Refer');
-    })->name('refer');
+    Route::get('/refer', [DriverReferController::class, 'show'])->name('refer');
 
-    Route::get('/account', function () {
-        return Inertia::render('Driver/Account');
-    })->name('account');
+    Route::get('/account', [DriverAccountController::class, 'show'])->name('account');
+    Route::post('/account/password-reset', [DriverAccountController::class, 'sendPasswordResetLink'])->name('account.password_reset');
 
-    Route::get('/settings', function () {
-        return Inertia::render('Driver/Settings');
-    })->name('settings');
+    Route::get('/settings', [DriverSettingsController::class, 'show'])->name('settings');
+    Route::patch('/settings', [DriverSettingsController::class, 'update'])->name('settings.update');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

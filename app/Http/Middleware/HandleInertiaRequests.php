@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\ReferralBonusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Inertia\Middleware;
@@ -41,6 +42,10 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+        if ($user) {
+            app(ReferralBonusService::class)->maybeGrantForReferredUser($user);
+            $user->refresh();
+        }
         $isPro = $user ? $user->isProAccess() : false;
 
         return [
@@ -57,6 +62,7 @@ class HandleInertiaRequests extends Middleware
                 'plan' => $isPro ? 'pro' : 'free',
                 'label' => $isPro ? 'Pro' : 'Conta Gratuita',
                 'is_pro' => $isPro,
+                'days_remaining' => $isPro ? $user->proDaysRemaining() : null,
             ] : null,
             'can' => $user ? [
                 'viewLogs' => $user->can('logs.view'),
