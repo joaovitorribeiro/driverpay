@@ -43,13 +43,13 @@ export default function DriverLayout({ header, children }) {
         () => [
             {
                 label: 'Política de privacidade',
-                href: route('privacy.policy'),
-                active: route().current('privacy.policy'),
+                href: route('legal.show', 'privacy_policy'),
+                active: window.location.pathname.includes('privacy_policy'),
             },
             {
                 label: 'Termos de Uso',
-                href: route('terms.use'),
-                active: route().current('terms.use'),
+                href: route('legal.show', 'terms_of_use'),
+                active: window.location.pathname.includes('terms_of_use'),
             },
         ],
         [],

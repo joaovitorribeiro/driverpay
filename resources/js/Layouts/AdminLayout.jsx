@@ -30,6 +30,20 @@ export default function AdminLayout({ header, children }) {
                   },
               ]
             : []),
+        ...(role === 'master'
+            ? [
+                  {
+                      label: 'Termos de Uso',
+                      href: route('master.legal.edit', 'terms_of_use'),
+                      active: route().current('master.legal.edit', 'terms_of_use'),
+                  },
+                  {
+                      label: 'Privacidade',
+                      href: route('master.legal.edit', 'privacy_policy'),
+                      active: route().current('master.legal.edit', 'privacy_policy'),
+                  },
+              ]
+            : []),
     ];
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =

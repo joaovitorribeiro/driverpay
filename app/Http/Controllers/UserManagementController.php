@@ -22,6 +22,8 @@ class UserManagementController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'role' => $user->getRoleNames()->first(),
+                'pro_days_remaining' => $user->proDaysRemaining(),
+                'pro_bonus_until' => $user->pro_bonus_until?->format('Y-m-d'),
             ]);
 
         $actor = $request->user();
@@ -54,6 +56,31 @@ class UserManagementController extends Controller
         $user->syncRoles([$data['role']]);
 
         return back();
+    }
+
+    public function addProDays(Request $request, User $user): RedirectResponse
+    {
+        $actor = $request->user();
+
+        if (! $actor || ! $actor->hasRole(Roles::MASTER)) {
+            abort(403);
+        }
+
+        $data = $request->validate([
+            'days' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $currentUntil = $user->pro_bonus_until;
+        
+        if ($currentUntil && $currentUntil->isFuture()) {
+            $user->pro_bonus_until = $currentUntil->addDays($data['days']);
+        } else {
+            $user->pro_bonus_until = now()->addDays($data['days']);
+        }
+
+        $user->save();
+
+        return back()->with('success', "Adicionado {$data['days']} dias de PRO para {$user->name}.");
     }
 
     private function page(Request $request): string

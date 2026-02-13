@@ -5,6 +5,7 @@ use App\Http\Controllers\DriverAccountController;
 use App\Http\Controllers\DriverCostController;
 use App\Http\Controllers\DriverReferController;
 use App\Http\Controllers\DriverSettingsController;
+use App\Http\Controllers\LegalDocumentController;
 use App\Http\Controllers\LogViewerController;
 use App\Http\Controllers\ProController;
 use App\Http\Controllers\ProfileController;
@@ -22,12 +23,17 @@ Route::get('/', function () {
     ]);
 });
 
+// Public Legal Routes
+Route::get('/legal/{type}', [LegalDocumentController::class, 'show'])
+    ->name('legal.show');
+
+// Compatibility redirects
 Route::get('/privacy-policy', function () {
-    return Inertia::render('Legal/PrivacyPolicy');
+    return redirect()->route('legal.show', 'privacy_policy');
 })->name('privacy.policy');
 
 Route::get('/terms-of-use', function () {
-    return Inertia::render('Legal/TermsOfUse');
+    return redirect()->route('legal.show', 'terms_of_use');
 })->name('terms.use');
 
 Route::get('/dashboard', [DashboardController::class, 'show'])
@@ -61,10 +67,19 @@ Route::middleware('auth')->group(function () {
     Route::put('/users/{user}/role', [UserManagementController::class, 'updateRole'])
         ->middleware('permission:users.manage')
         ->name('users.role.update');
+    Route::post('/users/{user}/pro-days', [UserManagementController::class, 'addProDays'])
+        ->middleware('role:master')
+        ->name('users.pro_days.add');
 
     Route::get('/logs', [LogViewerController::class, 'index'])
         ->middleware('permission:logs.view')
         ->name('logs.index');
+
+    // Master Legal Editing Routes
+    Route::middleware(['role:master'])->prefix('master')->name('master.')->group(function () {
+        Route::get('/legal/{type}/edit', [LegalDocumentController::class, 'edit'])->name('legal.edit');
+        Route::put('/legal/{type}', [LegalDocumentController::class, 'update'])->name('legal.update');
+    });
 });
 
 require __DIR__.'/auth.php';
