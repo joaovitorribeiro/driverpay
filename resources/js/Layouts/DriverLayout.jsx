@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 export default function DriverLayout({ header, children }) {
     const user = usePage().props.auth.user;
+    const isPro = !!usePage().props.billing?.is_pro;
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -101,10 +102,10 @@ export default function DriverLayout({ header, children }) {
                     </div>
 
                     <Link
-                        href={route('upgrade')}
+                        href={route('pro')}
                         className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 px-5 text-xs font-bold tracking-wider text-emerald-950 hover:bg-emerald-400"
                     >
-                        UPGRADE
+                        {isPro ? 'PRO' : 'UPGRADE'}
                     </Link>
                 </div>
             </div>
@@ -148,11 +149,11 @@ export default function DriverLayout({ header, children }) {
                         </div>
 
                         <Link
-                            href={route('upgrade')}
+                            href={route('pro')}
                             onClick={() => setIsMenuOpen(false)}
                             className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 text-sm font-semibold text-emerald-950"
                         >
-                            Upgrade
+                            {isPro ? 'Pro' : 'Upgrade'}
                         </Link>
 
                         <nav className="mt-6 flex-1">

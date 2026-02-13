@@ -3,6 +3,7 @@
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DriverCostController;
 use App\Http\Controllers\LogViewerController;
+use App\Http\Controllers\ProController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserManagementController;
 use Illuminate\Foundation\Application;
@@ -31,9 +32,11 @@ Route::get('/dashboard', [DashboardController::class, 'show'])
     ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/upgrade', function () {
-        return Inertia::render('Driver/Upgrade');
-    })->name('upgrade');
+    Route::get('/upgrade', fn () => redirect()->route('pro'))->name('upgrade');
+
+    Route::get('/pro', [ProController::class, 'show'])->name('pro');
+    Route::post('/billing/google/start', [ProController::class, 'start'])->name('billing.google.start');
+    Route::get('/billing/google/manage', [ProController::class, 'manage'])->name('billing.google.manage');
 
     Route::get('/refer', function () {
         return Inertia::render('Driver/Refer');

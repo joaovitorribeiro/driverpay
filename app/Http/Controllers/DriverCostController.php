@@ -6,6 +6,7 @@ use App\Http\Requests\StoreDriverCostRequest;
 use App\Http\Requests\UpdateDriverCostRequest;
 use App\Models\DriverCost;
 use App\Support\Roles;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -18,14 +19,50 @@ class DriverCostController extends Controller
         $this->authorize('viewAny', DriverCost::class);
 
         $user = $request->user();
-        $query = DriverCost::query()->with('user:id,name,email')->orderByDesc('date')->orderByDesc('id');
+        $isPro = $user ? $user->isProAccess() : false;
+
+        $query = DriverCost::query()
+            ->with('user:id,name,email')
+            ->orderByDesc('date')
+            ->orderByDesc('id');
+
+        $period = $request->query('period');
+        $resolvedPeriod = in_array($period, ['7d', '30d', 'all'], true) ? $period : null;
+
+        if (! $isPro && $resolvedPeriod && $resolvedPeriod !== '7d') {
+            $resolvedPeriod = '7d';
+        }
 
         if ($user && $user->hasRole(Roles::DRIVER)) {
             $query->where('user_id', $user->id);
+
+            if (! $resolvedPeriod) {
+                $resolvedPeriod = '7d';
+            }
         }
+
+        if ($resolvedPeriod === '7d' || $resolvedPeriod === '30d') {
+            $days = $resolvedPeriod === '30d' ? 30 : 7;
+            $from = CarbonImmutable::now()->subDays($days - 1)->startOfDay()->toDateString();
+            $query->whereDate('date', '>=', $from);
+        }
+
+        $summaryQuery = (clone $query)->reorder();
+        $totalCents = (int) (clone $summaryQuery)->sum('amount_cents');
+
+        $daily = (clone $summaryQuery)
+            ->selectRaw('date, sum(amount_cents) as total_cents')
+            ->groupBy('date');
+
+        $bestDay = (clone $daily)->orderBy('total_cents')->first();
+        $worstDay = (clone $daily)->orderByDesc('total_cents')->first();
+
+        $bestDate = $bestDay?->date;
+        $worstDate = $worstDay?->date;
 
         $costs = $query
             ->paginate(20)
+            ->appends($request->query())
             ->through(fn (DriverCost $cost) => [
                 'id' => $cost->id,
                 'date' => $cost->date?->format('Y-m-d'),
@@ -45,6 +82,23 @@ class DriverCostController extends Controller
 
         return Inertia::render($this->page('Index', $request), [
             'costs' => $costs,
+            'filters' => [
+                'period' => $resolvedPeriod,
+            ],
+            'entitlements' => [
+                'is_pro' => $isPro,
+            ],
+            'summary' => [
+                'total_cents' => $totalCents,
+                'best_day' => $bestDate ? [
+                    'date' => is_string($bestDate) ? $bestDate : $bestDate->format('Y-m-d'),
+                    'total_cents' => (int) $bestDay->total_cents,
+                ] : null,
+                'worst_day' => $worstDate ? [
+                    'date' => is_string($worstDate) ? $worstDate : $worstDate->format('Y-m-d'),
+                    'total_cents' => (int) $worstDay->total_cents,
+                ] : null,
+            ],
         ]);
     }
 
@@ -116,4 +170,3 @@ class DriverCostController extends Controller
         return "Costs/Driver/{$suffix}";
     }
 }
-

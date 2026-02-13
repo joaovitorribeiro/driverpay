@@ -41,6 +41,7 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+        $isPro = $user ? $user->isProAccess() : false;
 
         return [
             ...parent::share($request),
@@ -52,6 +53,11 @@ class HandleInertiaRequests extends Middleware
                     'role' => $user->getRoleNames()->first(),
                 ] : null,
             ],
+            'billing' => $user ? [
+                'plan' => $isPro ? 'pro' : 'free',
+                'label' => $isPro ? 'Pro' : 'Conta Gratuita',
+                'is_pro' => $isPro,
+            ] : null,
             'can' => $user ? [
                 'viewLogs' => $user->can('logs.view'),
                 'deleteRecords' => $user->can('records.delete'),

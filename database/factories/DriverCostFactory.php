@@ -14,11 +14,10 @@ class DriverCostFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
-            'date' => $this->faker->date(),
+            'date' => $this->faker->dateTimeBetween('-6 days', 'now'),
             'description' => $this->faker->sentence(3),
             'amount_cents' => $this->faker->numberBetween(0, 250_000),
             'notes' => $this->faker->optional()->sentence(),
         ];
     }
 }
-
