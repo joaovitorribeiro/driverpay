@@ -26,6 +26,8 @@ Route::get('/', function () {
 // Public Legal Routes
 Route::get('/legal/{type}', [LegalDocumentController::class, 'show'])
     ->name('legal.show');
+Route::get('/legal/{type}/content', [LegalDocumentController::class, 'content'])
+    ->name('legal.content');
 
 // Compatibility redirects
 Route::get('/privacy-policy', function () {

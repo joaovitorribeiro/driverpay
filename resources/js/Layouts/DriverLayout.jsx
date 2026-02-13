@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
+import Modal from '@/Components/Modal';
 
 export default function DriverLayout({ header, children }) {
     const user = usePage().props.auth.user;
@@ -7,6 +8,10 @@ export default function DriverLayout({ header, children }) {
     const daysRemaining = usePage().props.billing?.days_remaining;
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isLegalOpen, setIsLegalOpen] = useState(false);
+    const [legalLoading, setLegalLoading] = useState(false);
+    const [legalError, setLegalError] = useState('');
+    const [legalDoc, setLegalDoc] = useState(null);
 
     const items = useMemo(
         () => [
@@ -43,17 +48,41 @@ export default function DriverLayout({ header, children }) {
         () => [
             {
                 label: 'Política de privacidade',
-                href: route('legal.show', 'privacy_policy'),
-                active: window.location.pathname.includes('privacy_policy'),
+                type: 'privacy_policy',
             },
             {
                 label: 'Termos de Uso',
-                href: route('legal.show', 'terms_of_use'),
-                active: window.location.pathname.includes('terms_of_use'),
+                type: 'terms_of_use',
             },
         ],
         [],
     );
+
+    async function openLegal(type) {
+        setIsMenuOpen(false);
+        setIsLegalOpen(true);
+        setLegalLoading(true);
+        setLegalError('');
+        setLegalDoc(null);
+
+        try {
+            const response = await fetch(route('legal.content', type), {
+                headers: { Accept: 'application/json' },
+                cache: 'no-store',
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            setLegalDoc(data);
+        } catch (e) {
+            setLegalError('Não foi possível carregar o documento.');
+        } finally {
+            setLegalLoading(false);
+        }
+    }
 
     useEffect(() => {
         if (!isMenuOpen) {
@@ -125,6 +154,36 @@ export default function DriverLayout({ header, children }) {
 
             <main>{children}</main>
 
+            <Modal show={isLegalOpen} onClose={() => setIsLegalOpen(false)} maxWidth="2xl">
+                <div className="border-b border-gray-200 px-6 py-4">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="font-serif text-base font-semibold text-gray-900">
+                            {legalDoc?.title ?? 'Documento'}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setIsLegalOpen(false)}
+                            className="rounded-md px-3 py-1.5 text-sm font-semibold text-gray-600 hover:bg-gray-100"
+                        >
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+                <div className="max-h-[75vh] overflow-y-auto px-6 py-6">
+                    {legalLoading ? (
+                        <div className="text-sm text-gray-600">Carregando…</div>
+                    ) : legalError ? (
+                        <div className="text-sm font-semibold text-red-600">
+                            {legalError}
+                        </div>
+                    ) : (
+                        <div className="whitespace-pre-wrap font-serif text-[15px] leading-7 text-gray-900 [text-align:justify]">
+                            {legalDoc?.content ?? ''}
+                        </div>
+                    )}
+                </div>
+            </Modal>
+
             <div
                 className={
                     (isMenuOpen
@@ -186,19 +245,17 @@ export default function DriverLayout({ header, children }) {
 
                             <div className="space-y-3">
                                 {legalItems.map((item) => (
-                                    <Link
-                                        key={item.href}
-                                        href={item.href}
-                                        onClick={() => setIsMenuOpen(false)}
+                                    <button
+                                        key={item.type}
+                                        type="button"
+                                        onClick={() => openLegal(item.type)}
                                         className={
-                                            (item.active
-                                                ? 'text-emerald-300'
-                                                : 'text-white/80 hover:text-white') +
+                                            'text-white/80 hover:text-white' +
                                             ' block text-sm font-semibold'
                                         }
                                     >
                                         {item.label}
-                                    </Link>
+                                    </button>
                                 ))}
                             </div>
                         </nav>

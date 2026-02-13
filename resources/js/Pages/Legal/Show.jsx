@@ -1,16 +1,48 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import DriverLayout from '@/Layouts/DriverLayout';
-import ApplicationLogo from '@/Components/ApplicationLogo';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 
 export default function Show({ document }) {
-    const { auth } = usePage().props;
-    const user = auth.user;
+    const user = usePage().props.auth?.user;
+    const isDriver = user?.role === 'driver';
 
-    const Content = () => (
-        <div className="py-12">
-            <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                <div className="bg-white p-6 shadow sm:rounded-lg">
+    const DocumentView = () => (
+        <div className="min-h-screen bg-gray-100 px-4 py-10 text-gray-900 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-3xl">
+                <div className="rounded-lg border border-gray-200 bg-white px-6 py-8 shadow sm:px-10 sm:py-12">
+                    <div className="text-center">
+                        <div className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+                            Driver Pay
+                        </div>
+                        <h1 className="mt-3 font-serif text-2xl font-semibold tracking-tight text-gray-900">
+                            {document.title}
+                        </h1>
+                    </div>
+
+                    <div className="mt-10 whitespace-pre-wrap font-serif text-[15px] leading-7 text-gray-900 [text-align:justify]">
+                        {document.content}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const DriverContent = () => (
+        <div className="py-8">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="rounded-xl border border-white/10 bg-white px-6 py-8 shadow sm:px-10 sm:py-12">
+                    <div className="whitespace-pre-wrap font-serif text-[15px] leading-7 text-gray-900 [text-align:justify]">
+                        {document.content}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const AdminContent = () => (
+        <div className="py-8">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div className="rounded-xl border border-gray-200 bg-white p-6">
                     <div className="prose max-w-none whitespace-pre-wrap">
                         {document.content}
                     </div>
@@ -19,66 +51,40 @@ export default function Show({ document }) {
         </div>
     );
 
-    if (user) {
-        // Se for motorista usa DriverLayout, caso contrário (master/admin) usa AdminLayout
-        const Layout = user.roles && user.roles.some(r => r.name === 'driver') 
-            ? DriverLayout 
-            : (user.role === 'driver' ? DriverLayout : AdminLayout); // Fallback caso roles não venha formatado como esperado, checando propriedade direta se existir
-
-        // Nota: O objeto user pode variar dependendo de como é serializado (se tem roles array ou atributo role).
-        // Assumindo que a verificação de role no AdminLayout usava user.role, vou manter compatibilidade.
-        // Se user.role for 'master' ou 'admin', usa AdminLayout.
-
-        const ActualLayout = (user.role === 'driver') ? DriverLayout : AdminLayout;
-
+    if (!user) {
         return (
-            <ActualLayout
+            <>
+                <Head title={document.title} />
+                <DocumentView />
+            </>
+        );
+    }
+
+    if (isDriver) {
+        return (
+            <DriverLayout
                 header={
-                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                    <h2 className="text-xl font-semibold leading-tight text-white">
                         {document.title}
                     </h2>
                 }
             >
                 <Head title={document.title} />
-                <Content />
-            </ActualLayout>
+                <DriverContent />
+            </DriverLayout>
         );
     }
 
-    // Public Layout
     return (
-        <div className="min-h-screen bg-gray-100">
+        <AdminLayout
+            header={
+                <h2 className="text-xl font-semibold leading-tight text-gray-800">
+                    {document.title}
+                </h2>
+            }
+        >
             <Head title={document.title} />
-            <nav className="border-b border-gray-100 bg-white">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div className="flex h-16 justify-between">
-                        <div className="flex">
-                            <div className="flex shrink-0 items-center">
-                                <Link href="/">
-                                    <ApplicationLogo className="block h-9 w-auto fill-current text-gray-800" />
-                                </Link>
-                            </div>
-                        </div>
-                        <div className="flex items-center">
-                            <Link href={route('login')} className="text-sm font-semibold text-gray-600 hover:text-gray-900">
-                                Entrar
-                            </Link>
-                        </div>
-                    </div>
-                </div>
-            </nav>
-            
-            <header className="bg-white shadow">
-                <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                    <h2 className="text-xl font-semibold leading-tight text-gray-800">
-                        {document.title}
-                    </h2>
-                </div>
-            </header>
-
-            <main>
-                <Content />
-            </main>
-        </div>
+            <AdminContent />
+        </AdminLayout>
     );
 }

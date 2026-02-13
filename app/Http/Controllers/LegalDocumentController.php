@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LegalDocument;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Http\JsonResponse;
 
 class LegalDocumentController extends Controller
 {
@@ -35,12 +36,16 @@ class LegalDocumentController extends Controller
             'is_published' => 'boolean',
         ]);
 
+        $isPublished = array_key_exists('is_published', $validated)
+            ? ($validated['is_published'] ? 'true' : 'false')
+            : 'true';
+
         $document = LegalDocument::updateOrCreate(
             ['type' => $type],
             [
                 'title' => $validated['title'],
                 'content' => $validated['content'],
-                'is_published' => $validated['is_published'] ?? true,
+                'is_published' => $isPublished,
             ]
         );
 
@@ -61,10 +66,35 @@ class LegalDocumentController extends Controller
 
         abort_unless(in_array($dbType, ['terms_of_use', 'privacy_policy']), 404);
 
-        $document = LegalDocument::where('type', $dbType)->where('is_published', true)->firstOrFail();
+        $document = LegalDocument::where('type', $dbType)
+            ->whereRaw('is_published = true')
+            ->firstOrFail();
 
         return Inertia::render('Legal/Show', [
             'document' => $document,
         ]);
+    }
+
+    public function content(string $type): JsonResponse
+    {
+        $dbType = match ($type) {
+            'termos-de-uso' => 'terms_of_use',
+            'politica-de-privacidade' => 'privacy_policy',
+            default => $type,
+        };
+
+        abort_unless(in_array($dbType, ['terms_of_use', 'privacy_policy']), 404);
+
+        $document = LegalDocument::where('type', $dbType)
+            ->whereRaw('is_published = true')
+            ->firstOrFail();
+
+        return response()
+            ->json([
+            'type' => $document->type,
+            'title' => $document->title,
+            'content' => $document->content,
+        ])
+            ->header('Cache-Control', 'no-store, max-age=0');
     }
 }

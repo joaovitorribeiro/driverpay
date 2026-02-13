@@ -7,7 +7,7 @@ import UpdateProfileInformationForm from './Partials/UpdateProfileInformationFor
 
 export default function Edit({ mustVerifyEmail, status }) {
     const role = usePage().props.auth.user?.role;
-    const Layout = role === 'motoristas' ? DriverLayout : AdminLayout;
+    const Layout = role === 'driver' ? DriverLayout : AdminLayout;
 
     return (
         <Layout
@@ -33,7 +33,7 @@ export default function Edit({ mustVerifyEmail, status }) {
                         <UpdatePasswordForm className="max-w-xl" />
                     </div>
 
-                    {role === 'motoristas' ? (
+                    {role === 'driver' ? (
                         <div className="bg-white p-4 shadow sm:rounded-lg sm:p-8">
                             <DeleteUserForm className="max-w-xl" />
                         </div>

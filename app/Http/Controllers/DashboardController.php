@@ -16,6 +16,7 @@ class DashboardController extends Controller
     {
         $user = $request->user();
         $query = DriverCost::query();
+        $settings = $user?->driverSetting;
 
         $isAdminOrMaster = $user && ($user->hasRole(Roles::MASTER) || $user->hasRole(Roles::ADMIN));
 
@@ -141,6 +142,12 @@ class DashboardController extends Controller
             ],
             'latest' => $latest,
             'drivers' => $driversOverview,
+            'driver_settings' => $user && $user->hasRole(Roles::DRIVER) ? [
+                'fuel_price_brl' => $settings?->fuel_price_brl !== null ? (string) $settings->fuel_price_brl : '0',
+                'consumption_km_per_l' => $settings?->consumption_km_per_l !== null ? (string) $settings->consumption_km_per_l : '0',
+                'maintenance_monthly_brl' => $settings?->maintenance_monthly_brl !== null ? (string) $settings->maintenance_monthly_brl : '0',
+                'rent_monthly_brl' => $settings?->rent_monthly_brl !== null ? (string) $settings->rent_monthly_brl : '0',
+            ] : null,
         ]);
     }
 

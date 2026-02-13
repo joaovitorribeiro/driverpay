@@ -5,6 +5,8 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
         <title inertia>{{ config('app.name', 'Driver Pay') }}</title>
+        <link rel="icon" type="image/png" href="{{ asset('assets/icon.png') }}">
+        <link rel="apple-touch-icon" href="{{ asset('assets/icon.png') }}">
 
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">

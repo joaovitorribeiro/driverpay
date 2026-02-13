@@ -1,4 +1,5 @@
 import AdminLayout from '@/Layouts/AdminLayout';
+import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -58,6 +59,24 @@ export default function Edit({ document, type }) {
                                 <p className="mt-1 text-sm text-gray-500">
                                     Use Markdown ou texto simples.
                                 </p>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <Checkbox
+                                    id="is_published"
+                                    checked={!!data.is_published}
+                                    onChange={(e) =>
+                                        setData('is_published', e.target.checked)
+                                    }
+                                />
+                                <InputLabel
+                                    htmlFor="is_published"
+                                    value="Publicado"
+                                />
+                                <InputError
+                                    className="mt-2"
+                                    message={errors.is_published}
+                                />
                             </div>
 
                             <div className="flex items-center gap-4">
