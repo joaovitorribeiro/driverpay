@@ -1,7 +1,7 @@
 import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import TextInput from '@/Components/TextInput';
-import AuthLayout from '@/Layouts/AuthLayout';
+import AuthShell from '@/Components/Auth/AuthShell';
 import { Head, Link, useForm } from '@inertiajs/react';
 
 export default function Enter({ mode = 'login', status, canResetPassword }) {
@@ -47,7 +47,7 @@ export default function Enter({ mode = 'login', status, canResetPassword }) {
     const currentForm = isRegister ? registerForm : loginForm;
 
     return (
-        <AuthLayout>
+        <AuthShell>
             <Head title={title} />
 
             <div className="flex items-center">
@@ -272,6 +272,6 @@ export default function Enter({ mode = 'login', status, canResetPassword }) {
                     </button>
                 </form>
             </div>
-        </AuthLayout>
+        </AuthShell>
     );
 }

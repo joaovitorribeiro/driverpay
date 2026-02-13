@@ -7,45 +7,16 @@ services:
     volumes:
       - ./:/var/www/html
       - vendor-data:/var/www/html/vendor
-    environment:
-      PHP_CLI_SERVER_WORKERS: 4
-    depends_on:
-      redis:
-        condition: service_started
+      - node-modules-data:/var/www/html/node_modules
+      - postgres-data:/var/lib/postgresql/data
     ports:
       - "8080:8000"
-    command: >
-      sh -lc "
-        chmod -R 777 storage bootstrap/cache;
-        if [ ! -f .env ]; then cp .env.example .env; fi;
-        if [ ! -f vendor/autoload.php ]; then composer install --no-interaction --prefer-dist; fi;
-        php artisan migrate --force;
-        php artisan serve --host=0.0.0.0 --port=8000
-      "
-
-  vite:
-    image: node:22-alpine
-    working_dir: /var/www/html
-    volumes:
-      - ./:/var/www/html
-      - node-modules-data:/var/www/html/node_modules
-    environment:
-      VITE_PORT: 5173
-      VITE_HMR_HOST: localhost
-      VITE_USE_POLLING: "1"
-    ports:
       - "5173:5173"
-    command: >
-      sh -lc "
-        if [ ! -f node_modules/.bin/vite ]; then npm ci; fi;
-        npm run dev -- --host 0.0.0.0 --port 5173 --strictPort
-      "
-
-  redis:
-    image: redis:7-alpine
-    ports:
+      - "5432:5432"
+      - "6543:6543"
       - "6380:6379"
 
 volumes:
   vendor-data:
   node-modules-data:
+  postgres-data:

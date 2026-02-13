@@ -1,4 +1,4 @@
-import MasterLayout from '@/Layouts/MasterLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { formatMoneyFromCents } from '@/Pages/Costs/Partials/formatMoney';
 import { Head, Link } from '@inertiajs/react';
 
@@ -18,7 +18,7 @@ function StatCard({ title, value, subtitle }) {
 
 export default function MasterDashboard({ metrics, latest }) {
     return (
-        <MasterLayout
+        <AdminLayout
             header={
                 <div className="flex items-center justify-between gap-4">
                     <div>
@@ -118,7 +118,6 @@ export default function MasterDashboard({ metrics, latest }) {
                     </div>
                 </div>
             </div>
-        </MasterLayout>
+        </AdminLayout>
     );
 }
-

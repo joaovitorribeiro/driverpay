@@ -14,20 +14,9 @@
 - Dev (hot reload): `docker compose up -d --build`
 - App: http://localhost:8080
 - Vite (HMR): http://localhost:5173
-- Banco: Supabase Postgres via pooler (porta 6543)
-- Redis: `localhost:6380` (container `redis:6379`)
-- Testes (dentro do container): `docker compose exec -T app ./vendor/bin/phpunit --configuration phpunit.xml`
-
-## Coolify (prod)
-
-- Usar o Dockerfile `docker/php/Dockerfile.prod`
-- Rodar 3 serviços (mesma imagem):
-  - web: `apache2-foreground` (porta 80 no container; Traefik faz o proxy)
-  - queue: `php artisan queue:work --sleep=1 --tries=3 --timeout=90`
-  - scheduler: `php artisan schedule:work`
-- Redis como serviço separado no Coolify
-- Banco: Supabase Pooler (transaction) com `DB_SSLMODE=require` e `DB_EMULATE_PREPARES=true`
-- Importante (Cloudflare + Traefik): setar `APP_URL=https://SEU_DOMINIO` e `SESSION_SECURE_COOKIE=true`
+- Banco: PgBouncer `localhost:6543` (Postgres interno `localhost:5432`)
+- Redis: `localhost:6380`
+- Testes (dentro do container): `docker compose run --rm app php artisan test --no-ansi`
 
 ## About Laravel
 

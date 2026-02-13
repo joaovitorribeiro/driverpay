@@ -1,4 +1,4 @@
-import MasterLayout from '@/Layouts/MasterLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router } from '@inertiajs/react';
 
 function formatBytes(bytes) {
@@ -10,7 +10,7 @@ function formatBytes(bytes) {
 
 export default function LogsIndex({ log }) {
     return (
-        <MasterLayout
+        <AdminLayout
             header={
                 <div className="flex items-center justify-between gap-4">
                     <div>
@@ -80,7 +80,6 @@ export default function LogsIndex({ log }) {
                     </div>
                 </div>
             </div>
-        </MasterLayout>
+        </AdminLayout>
     );
 }
-

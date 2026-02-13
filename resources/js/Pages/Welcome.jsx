@@ -14,7 +14,7 @@ export default function Welcome({ auth, laravelVersion, phpVersion }) {
 
     return (
         <>
-            <Head title="Welcome" />
+            <Head title="Driver Pay" />
             <div className="bg-gray-50 text-black/50 dark:bg-black dark:text-white/50">
                 <img
                     id="background"
@@ -77,13 +77,13 @@ export default function Welcome({ auth, laravelVersion, phpVersion }) {
                                     >
                                         <img
                                             src="https://laravel.com/assets/img/welcome/docs-light.svg"
-                                            alt="Laravel documentation screenshot"
+                                            alt="Driver Pay"
                                             className="aspect-video h-full w-full flex-1 rounded-[10px] object-cover object-top drop-shadow-[0px_4px_34px_rgba(0,0,0,0.06)] dark:hidden"
                                             onError={handleImageError}
                                         />
                                         <img
                                             src="https://laravel.com/assets/img/welcome/docs-dark.svg"
-                                            alt="Laravel documentation screenshot"
+                                            alt="Driver Pay"
                                             className="hidden aspect-video h-full w-full flex-1 rounded-[10px] object-cover object-top drop-shadow-[0px_4px_34px_rgba(0,0,0,0.25)] dark:block"
                                         />
                                         <div className="absolute -bottom-16 -left-16 h-40 w-[calc(100%+8rem)] bg-gradient-to-b from-transparent via-white to-white dark:via-zinc-900 dark:to-zinc-900"></div>
@@ -118,14 +118,10 @@ export default function Welcome({ auth, laravelVersion, phpVersion }) {
                                                 </h2>
 
                                                 <p className="mt-4 text-sm/relaxed">
-                                                    Laravel has wonderful
-                                                    documentation covering every
-                                                    aspect of the framework.
-                                                    Whether you are a newcomer
-                                                    or have prior experience
-                                                    with Laravel, we recommend
-                                                    reading our documentation
-                                                    from beginning to end.
+                                                    Acesse a documentação e os
+                                                    recursos do Driver Pay para
+                                                    entender as telas e evoluir
+                                                    o produto.
                                                 </p>
                                             </div>
                                         </div>
@@ -170,8 +166,8 @@ export default function Welcome({ auth, laravelVersion, phpVersion }) {
 
                                         <p className="mt-4 text-sm/relaxed">
                                             Laracasts offers thousands of video
-                                            tutorials on Laravel, PHP, and
-                                            JavaScript development. Check them
+                                            tutorials on PHP and JavaScript
+                                            development. Check them
                                             out, see for yourself, and massively
                                             level up your development skills in
                                             the process.
@@ -214,16 +210,12 @@ export default function Welcome({ auth, laravelVersion, phpVersion }) {
 
                                     <div className="pt-3 sm:pt-5">
                                         <h2 className="text-xl font-semibold text-black dark:text-white">
-                                            Laravel News
+                                            Atualizações
                                         </h2>
 
                                         <p className="mt-4 text-sm/relaxed">
-                                            Laravel News is a community driven
-                                            portal and newsletter aggregating
-                                            all of the latest and most important
-                                            news in the Laravel ecosystem,
-                                            including new package releases and
-                                            tutorials.
+                                            Fique por dentro de novidades e
+                                            melhorias do Driver Pay.
                                         </p>
                                     </div>
 
@@ -262,9 +254,9 @@ export default function Welcome({ auth, laravelVersion, phpVersion }) {
                                         </h2>
 
                                         <p className="mt-4 text-sm/relaxed">
-                                            Laravel's robust library of
-                                            first-party tools and libraries,
-                                            such as{' '}
+                                            Uma base sólida de ferramentas e
+                                            bibliotecas para você evoluir o
+                                            Driver Pay, como{' '}
                                             <a
                                                 href="https://forge.laravel.com"
                                                 className="rounded-sm underline hover:text-black focus:outline-none focus-visible:ring-1 focus-visible:ring-[#FF2D20] dark:hover:text-white dark:focus-visible:ring-[#FF2D20]"
@@ -351,7 +343,7 @@ export default function Welcome({ auth, laravelVersion, phpVersion }) {
                         </main>
 
                         <footer className="py-16 text-center text-sm text-black dark:text-white/70">
-                            Laravel v{laravelVersion} (PHP v{phpVersion})
+                            Driver Pay (PHP v{phpVersion})
                         </footer>
                     </div>
                 </div>

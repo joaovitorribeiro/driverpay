@@ -1,4 +1,4 @@
-export default function AuthLayout({ children }) {
+export default function AuthShell({ children }) {
     return (
         <div className="relative min-h-screen overflow-hidden bg-[#070B12] text-slate-100">
             <div className="pointer-events-none absolute inset-0">

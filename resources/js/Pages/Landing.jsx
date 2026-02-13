@@ -3,11 +3,11 @@ import { Head, Link } from '@inertiajs/react';
 export default function Landing({ auth, canLogin, canRegister }) {
     return (
         <>
-            <Head title="DriverPay" />
+            <Head title="Driver Pay" />
             <div className="min-h-screen bg-gray-950 text-white">
                 <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
                     <div className="text-lg font-semibold tracking-tight">
-                        DriverPay
+                        Driver Pay
                     </div>
                     <nav className="flex items-center gap-2">
                         {auth.user ? (
@@ -47,9 +47,8 @@ export default function Landing({ auth, canLogin, canRegister }) {
                                 Pagamentos e controle para motoristas, simples.
                             </h1>
                             <p className="mt-6 text-lg leading-relaxed text-white/70">
-                                Uma base pronta com Laravel, Inertia, React e
-                                Tailwind para você evoluir o produto: landing,
-                                app, autenticação e banco PostgreSQL com pool.
+                                O Driver Pay ajuda motoristas a registrar ganhos,
+                                quilômetros e despesas com praticidade.
                             </p>
                             <div className="mt-8 flex flex-wrap items-center gap-3">
                                 {auth.user ? (
@@ -87,7 +86,7 @@ export default function Landing({ auth, canLogin, canRegister }) {
                                         Stack
                                     </div>
                                     <div className="mt-2 font-medium">
-                                        Laravel + Inertia + React
+                                        Inertia + React
                                     </div>
                                 </div>
                                 <div className="rounded-xl border border-white/10 bg-gray-950/30 p-4">

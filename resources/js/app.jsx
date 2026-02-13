@@ -7,10 +7,10 @@ import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
 import SplashScreen from './Components/SplashScreen';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'Driver Pay';
 
 createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+    title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) =>
         resolvePageComponent(
             `./Pages/${name}.jsx`,

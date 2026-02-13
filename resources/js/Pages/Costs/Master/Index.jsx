@@ -1,10 +1,10 @@
-import MasterLayout from '@/Layouts/MasterLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import CostsTable from '@/Pages/Costs/Partials/CostsTable';
 import { Head, Link } from '@inertiajs/react';
 
 export default function Index({ costs }) {
     return (
-        <MasterLayout
+        <AdminLayout
             header={
                 <div className="flex items-center justify-between gap-4">
                     <div>
@@ -30,6 +30,6 @@ export default function Index({ costs }) {
                     <CostsTable costs={costs} />
                 </div>
             </div>
-        </MasterLayout>
+        </AdminLayout>
     );
 }

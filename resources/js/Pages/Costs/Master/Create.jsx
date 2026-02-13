@@ -1,5 +1,5 @@
 import PrimaryButton from '@/Components/PrimaryButton';
-import MasterLayout from '@/Layouts/MasterLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import CostFields from '@/Pages/Costs/Partials/CostFields';
 import { Head, Link, useForm } from '@inertiajs/react';
 
@@ -12,7 +12,7 @@ export default function Create() {
     });
 
     return (
-        <MasterLayout
+        <AdminLayout
             header={
                 <div className="flex items-center justify-between gap-4">
                     <h2 className="text-xl font-semibold leading-tight text-gray-800">
@@ -52,6 +52,6 @@ export default function Create() {
                     </form>
                 </div>
             </div>
-        </MasterLayout>
+        </AdminLayout>
     );
 }

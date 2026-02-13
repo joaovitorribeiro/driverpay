@@ -18,11 +18,35 @@ Route::get('/', function () {
     ]);
 });
 
+Route::get('/privacy-policy', function () {
+    return Inertia::render('Legal/PrivacyPolicy');
+})->name('privacy.policy');
+
+Route::get('/terms-of-use', function () {
+    return Inertia::render('Legal/TermsOfUse');
+})->name('terms.use');
+
 Route::get('/dashboard', [DashboardController::class, 'show'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/upgrade', function () {
+        return Inertia::render('Driver/Upgrade');
+    })->name('upgrade');
+
+    Route::get('/refer', function () {
+        return Inertia::render('Driver/Refer');
+    })->name('refer');
+
+    Route::get('/account', function () {
+        return Inertia::render('Driver/Account');
+    })->name('account');
+
+    Route::get('/settings', function () {
+        return Inertia::render('Driver/Settings');
+    })->name('settings');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

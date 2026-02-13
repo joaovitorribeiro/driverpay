@@ -1,10 +1,10 @@
-import MasterLayout from '@/Layouts/MasterLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import UsersTable from '@/Pages/Users/Partials/UsersTable';
 import { Head } from '@inertiajs/react';
 
 export default function UsersIndex({ users, roles, canAssignMaster }) {
     return (
-        <MasterLayout
+        <AdminLayout
             header={
                 <div>
                     <h2 className="text-xl font-semibold leading-tight text-gray-800">
@@ -28,7 +28,6 @@ export default function UsersIndex({ users, roles, canAssignMaster }) {
                     />
                 </div>
             </div>
-        </MasterLayout>
+        </AdminLayout>
     );
 }
-

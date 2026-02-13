@@ -1,9 +1,13 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head } from '@inertiajs/react';
+import AdminLayout from '@/Layouts/AdminLayout';
+import DriverLayout from '@/Layouts/DriverLayout';
+import { Head, usePage } from '@inertiajs/react';
 
 export default function Dashboard() {
+    const role = usePage().props.auth.user?.role;
+    const Layout = role === 'motoristas' ? DriverLayout : AdminLayout;
+
     return (
-        <AuthenticatedLayout
+        <Layout
             header={
                 <h2 className="text-xl font-semibold leading-tight text-gray-800">
                     Dashboard
@@ -21,6 +25,6 @@ export default function Dashboard() {
                     </div>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </Layout>
     );
 }
