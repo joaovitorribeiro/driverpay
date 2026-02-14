@@ -24,6 +24,7 @@ class DriverSettingsController extends Controller
                 'maintenance_items' => $settings?->maintenance_items ?? [],
                 'rent_monthly_brl' => $settings?->rent_monthly_brl !== null ? (string) $settings->rent_monthly_brl : '',
                 'rent_items' => $settings?->rent_items ?? [],
+                'extra_monthly_items' => $settings?->extra_monthly_items ?? [],
             ],
         ]);
     }
@@ -41,6 +42,7 @@ class DriverSettingsController extends Controller
                 'maintenance_items' => $request->validated('maintenance_items', []),
                 'rent_monthly_brl' => $request->validated('rent_monthly_brl'),
                 'rent_items' => $request->validated('rent_items', []),
+                'extra_monthly_items' => $request->validated('extra_monthly_items', []),
             ],
         );
 

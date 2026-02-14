@@ -21,10 +21,10 @@ class UpdateDriverSettingsRequest extends FormRequest
                 continue;
             }
 
-            $normalized[$key] = str_replace(',', '.', trim($value));
+            $normalized[$key] = $this->normalizeNumberString($value);
         }
 
-        foreach (['maintenance_items', 'rent_items'] as $itemsKey) {
+        foreach (['maintenance_items', 'rent_items', 'extra_monthly_items'] as $itemsKey) {
             $items = $this->input($itemsKey);
             if (! is_array($items)) {
                 continue;
@@ -38,7 +38,7 @@ class UpdateDriverSettingsRequest extends FormRequest
 
                 $amount = $item['amount_brl'] ?? null;
                 if (is_string($amount)) {
-                    $amount = str_replace(',', '.', trim($amount));
+                    $amount = $this->normalizeNumberString($amount);
                 }
 
                 $next[] = [
@@ -56,6 +56,30 @@ class UpdateDriverSettingsRequest extends FormRequest
         }
     }
 
+    private function normalizeNumberString(string $value): ?string
+    {
+        $raw = trim($value);
+        $raw = preg_replace('/[^\d,.\-]/', '', $raw);
+        if (! is_string($raw) || $raw === '') {
+            return null;
+        }
+
+        $negative = str_starts_with($raw, '-');
+        $raw = str_replace('-', '', $raw);
+
+        if (str_contains($raw, ',')) {
+            $raw = str_replace('.', '', $raw);
+            $raw = str_replace(',', '.', $raw);
+        }
+
+        $parts = explode('.', $raw);
+        if (count($parts) > 2) {
+            $raw = $parts[0] . '.' . implode('', array_slice($parts, 1));
+        }
+
+        return ($negative ? '-' : '') . $raw;
+    }
+
     public function rules(): array
     {
         return [
@@ -71,6 +95,10 @@ class UpdateDriverSettingsRequest extends FormRequest
             'rent_items.*.id' => ['nullable', 'string', 'max:50'],
             'rent_items.*.label' => ['required_with:rent_items', 'string', 'max:80'],
             'rent_items.*.amount_brl' => ['required_with:rent_items', 'numeric', 'min:0', 'max:999999.99'],
+            'extra_monthly_items' => ['nullable', 'array', 'max:200'],
+            'extra_monthly_items.*.id' => ['nullable', 'string', 'max:50'],
+            'extra_monthly_items.*.label' => ['required_with:extra_monthly_items', 'string', 'max:80'],
+            'extra_monthly_items.*.amount_brl' => ['required_with:extra_monthly_items', 'numeric', 'min:0', 'max:999999.99'],
         ];
     }
 }

@@ -4,7 +4,16 @@ import { Transition } from '@headlessui/react';
 import Modal from '@/Components/Modal';
 import { useMemo, useState } from 'react';
 
-function Field({ label, hint, value, error, onChange, inputMode = 'decimal' }) {
+function Field({
+    label,
+    hint,
+    value,
+    error,
+    onChange,
+    onBlur,
+    inputMode = 'decimal',
+    placeholder,
+}) {
     return (
         <div>
             <div className="text-xs font-extrabold tracking-widest text-white/45">
@@ -18,7 +27,9 @@ function Field({ label, hint, value, error, onChange, inputMode = 'decimal' }) {
             <input
                 value={value}
                 onChange={onChange}
+                onBlur={onBlur}
                 inputMode={inputMode}
+                placeholder={placeholder}
                 className="mt-3 h-14 w-full rounded-2xl border border-white/10 bg-white/5 px-5 text-base font-semibold text-white placeholder:text-white/20 focus:border-emerald-400/40 focus:outline-none focus:ring-2 focus:ring-emerald-400/10"
             />
             {error ? (
@@ -44,6 +55,74 @@ function parseBrlToCents(value) {
 function formatDecimalFromCents(cents) {
     const value = (Number(cents ?? 0) || 0) / 100;
     return value.toFixed(2);
+}
+
+function formatMoneyFromCents(cents) {
+    const num = (Number(cents ?? 0) || 0) / 100;
+    return num.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
+function formatMoneyInput(value) {
+    if (!value) return '';
+    const cents = parseBrlToCents(value);
+    const num = cents / 100;
+    if (!Number.isFinite(num)) return '';
+    return num.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
+function normalizeNumericInput(raw) {
+    if (raw === null || raw === undefined) return '';
+    let s = String(raw);
+    s = s.replace(/[^\d,.-]/g, '');
+
+    const hasComma = s.includes(',');
+    const firstCommaIndex = s.indexOf(',');
+    if (hasComma) {
+        const before = s.slice(0, firstCommaIndex);
+        const after = s.slice(firstCommaIndex + 1);
+        s =
+            before.replace(/[.,]/g, '') +
+            ',' +
+            after.replace(/[.,]/g, '');
+    }
+
+    const hasDot = s.includes('.');
+    if (!hasComma && hasDot) {
+        const firstDotIndex = s.indexOf('.');
+        const before = s.slice(0, firstDotIndex);
+        const after = s.slice(firstDotIndex + 1);
+        s = before.replace(/[.,]/g, '') + '.' + after.replace(/[.,]/g, '');
+    }
+
+    s = s.replace(/[.,](?=[.,])/g, '');
+
+    const negative = s.startsWith('-');
+    s = s.replace(/-/g, '');
+    s = (negative ? '-' : '') + s;
+
+    return s;
+}
+
+function sanitizeMoneyInput(raw) {
+    const s = normalizeNumericInput(raw);
+    const withComma = s.replace('.', ',');
+    const [intPart, decPart] = withComma.split(',');
+    const dec = typeof decPart === 'string' ? decPart.slice(0, 2) : undefined;
+    return dec === undefined ? intPart : `${intPart},${dec}`;
+}
+
+function sanitizeDecimalInput(raw, maxDecimals = 2) {
+    const s = normalizeNumericInput(raw);
+    const withComma = s.replace('.', ',');
+    const [intPart, decPart] = withComma.split(',');
+    const dec = typeof decPart === 'string' ? decPart.slice(0, maxDecimals) : undefined;
+    return dec === undefined ? intPart : `${intPart},${dec}`;
 }
 
 function sumItemsCents(items) {
@@ -73,7 +152,12 @@ export default function Settings({ settings }) {
         maintenance_items: settings?.maintenance_items ?? [],
         rent_monthly_brl: settings?.rent_monthly_brl ?? '',
         rent_items: settings?.rent_items ?? [],
+        extra_monthly_items: settings?.extra_monthly_items ?? [],
     });
+
+    const [isQuickAddOpen, setIsQuickAddOpen] = useState(false);
+    const [quickLabel, setQuickLabel] = useState('');
+    const [quickAmount, setQuickAmount] = useState('');
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalType, setModalType] = useState('maintenance');
@@ -88,12 +172,36 @@ export default function Settings({ settings }) {
         () => sumItemsCents(form.data.rent_items),
         [form.data.rent_items],
     );
+    const extraTotalCents = useMemo(
+        () => sumItemsCents(form.data.extra_monthly_items),
+        [form.data.extra_monthly_items],
+    );
 
     const openModal = (type) => {
         setModalType(type);
         setDraftLabel('');
         setDraftAmount('');
         setIsModalOpen(true);
+    };
+
+    const addQuickItem = () => {
+        if (!quickLabel.trim()) return;
+        if (!quickAmount.trim()) return;
+
+        const next = [
+            ...(form.data.extra_monthly_items ?? []),
+            {
+                id: `${Date.now()}`,
+                label: quickLabel.trim(),
+                amount_brl: quickAmount.trim(),
+            },
+        ];
+
+        form.setData('extra_monthly_items', next);
+
+        setQuickLabel('');
+        setQuickAmount('');
+        setIsQuickAddOpen(false);
     };
 
     const currentItems =
@@ -159,10 +267,10 @@ export default function Settings({ settings }) {
                     >
                         <button
                             type="button"
-                            onClick={() => openModal('maintenance')}
-                            className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-6 text-sm font-extrabold tracking-wide text-white/90 hover:bg-white/10"
+                            onClick={() => setIsQuickAddOpen(true)}
+                            className="mb-6 inline-flex h-12 w-full items-center justify-center rounded-2xl border border-emerald-400/35 bg-emerald-500/15 px-6 text-sm font-extrabold tracking-wide text-emerald-200 shadow-lg shadow-emerald-500/10 hover:bg-emerald-500/20"
                         >
-                            + Adicionar custo
+                            + Adicionar variável
                         </button>
 
                         <div className="space-y-6">
@@ -171,7 +279,16 @@ export default function Settings({ settings }) {
                                 value={form.data.fuel_price_brl}
                                 error={form.errors.fuel_price_brl}
                                 onChange={(e) =>
-                                    form.setData('fuel_price_brl', e.target.value)
+                                    form.setData(
+                                        'fuel_price_brl',
+                                        sanitizeMoneyInput(e.target.value),
+                                    )
+                                }
+                                onBlur={() =>
+                                    form.setData(
+                                        'fuel_price_brl',
+                                        formatMoneyInput(form.data.fuel_price_brl),
+                                    )
                                 }
                             />
                             <Field
@@ -179,7 +296,19 @@ export default function Settings({ settings }) {
                                 value={form.data.consumption_km_per_l}
                                 error={form.errors.consumption_km_per_l}
                                 onChange={(e) =>
-                                    form.setData('consumption_km_per_l', e.target.value)
+                                    form.setData(
+                                        'consumption_km_per_l',
+                                        sanitizeDecimalInput(e.target.value, 2),
+                                    )
+                                }
+                                onBlur={() =>
+                                    form.setData(
+                                        'consumption_km_per_l',
+                                        sanitizeDecimalInput(
+                                            form.data.consumption_km_per_l,
+                                            2,
+                                        ).replace(/,$/, ''),
+                                    )
                                 }
                             />
                             <Field
@@ -189,7 +318,17 @@ export default function Settings({ settings }) {
                                 onChange={(e) =>
                                     form.setData(
                                         'maintenance_monthly_brl',
-                                        e.target.value,
+                                        sanitizeMoneyInput(e.target.value),
+                                    )
+                                }
+                                onBlur={() =>
+                                    form.setData(
+                                        'maintenance_monthly_brl',
+                                        form.data.maintenance_monthly_brl
+                                            ? formatMoneyInput(
+                                                  form.data.maintenance_monthly_brl,
+                                              )
+                                            : '',
                                     )
                                 }
                             />
@@ -202,13 +341,74 @@ export default function Settings({ settings }) {
                                 value={form.data.rent_monthly_brl}
                                 error={form.errors.rent_monthly_brl}
                                 onChange={(e) =>
-                                    form.setData('rent_monthly_brl', e.target.value)
+                                    form.setData(
+                                        'rent_monthly_brl',
+                                        sanitizeMoneyInput(e.target.value),
+                                    )
+                                }
+                                onBlur={() =>
+                                    form.setData(
+                                        'rent_monthly_brl',
+                                        form.data.rent_monthly_brl
+                                            ? formatMoneyInput(form.data.rent_monthly_brl)
+                                            : '',
+                                    )
                                 }
                             />
                             <ItemizeButton
                                 onClick={() => openModal('rent')}
                                 count={(form.data.rent_items ?? []).length}
                             />
+                        </div>
+
+                        <div className="mt-6">
+                            {(form.data.extra_monthly_items ?? []).length ? (
+                                <div className="space-y-3">
+                                    {(form.data.extra_monthly_items ?? []).map(
+                                        (item, idx) => (
+                                            <div
+                                                key={item?.id ?? idx}
+                                                className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                                            >
+                                                <div className="flex items-center justify-between gap-4">
+                                                    <div className="text-sm font-extrabold text-white">
+                                                        {item?.label ?? ''}
+                                                    </div>
+                                                    <div className="text-sm font-extrabold text-white/85">
+                                                        R$ {item?.amount_brl ?? '0,00'}
+                                                        <span className="text-white/45">
+                                                            {' '}
+                                                            / mês
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const next =
+                                                            (form.data
+                                                                .extra_monthly_items ??
+                                                                []).filter(
+                                                                (_, i) =>
+                                                                    i !== idx,
+                                                            );
+                                                        form.setData(
+                                                            'extra_monthly_items',
+                                                            next,
+                                                        );
+                                                    }}
+                                                    className="mt-3 rounded-xl px-3 py-2 text-xs font-extrabold text-red-300 hover:bg-white/5"
+                                                >
+                                                    Remover
+                                                </button>
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+                            ) : null}
+                            <div className="mt-3 text-xs font-semibold text-white/45">
+                                Total variáveis: {formatMoneyFromCents(extraTotalCents)} / mês
+                            </div>
                         </div>
 
                         <button
@@ -235,6 +435,73 @@ export default function Settings({ settings }) {
                     </form>
                 </div>
             </div>
+
+            <Modal
+                show={isQuickAddOpen}
+                onClose={() => setIsQuickAddOpen(false)}
+                maxWidth="md"
+            >
+                <div className="bg-[#070B12] text-white">
+                    <div className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
+                        <div className="text-base font-extrabold tracking-tight">
+                            Adicionar variável
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setIsQuickAddOpen(false)}
+                            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+                        >
+                            Fechar
+                        </button>
+                    </div>
+
+                    <div className="space-y-4 px-6 py-6">
+                        <input
+                            value={quickLabel}
+                            onChange={(e) => setQuickLabel(e.target.value)}
+                            placeholder="Nome da variável"
+                            className="h-12 w-full rounded-2xl border border-white/10 bg-[#0a1020]/60 px-4 text-sm font-semibold text-white placeholder:text-slate-500 focus:outline-none"
+                        />
+                        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0a1020]/60 px-4">
+                            <div className="text-sm font-semibold text-white/60">
+                                R$
+                            </div>
+                            <input
+                                value={quickAmount}
+                                onChange={(e) =>
+                                    setQuickAmount(sanitizeMoneyInput(e.target.value))
+                                }
+                                onBlur={() =>
+                                    setQuickAmount(
+                                        quickAmount ? formatMoneyInput(quickAmount) : '',
+                                    )
+                                }
+                                inputMode="decimal"
+                                placeholder="Valor mensal (0,00)"
+                                className="h-12 w-full border-0 bg-transparent p-0 text-sm font-semibold text-white placeholder:text-slate-500 focus:outline-none"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setIsQuickAddOpen(false)}
+                                className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sm font-extrabold text-white hover:bg-white/10"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={addQuickItem}
+                                disabled={!quickLabel.trim() || !quickAmount.trim()}
+                                className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-emerald-500 text-sm font-extrabold text-emerald-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Modal>
 
             <Modal show={isModalOpen} onClose={() => setIsModalOpen(false)} maxWidth="md">
                 <div className="bg-[#070B12] text-white">
@@ -271,8 +538,8 @@ export default function Settings({ settings }) {
                                 <div className="rounded-2xl border border-white/10 bg-[#0a1020]/60 px-4 py-3 text-sm font-semibold text-white/80">
                                     Total:{' '}
                                     {modalType === 'rent'
-                                        ? formatDecimalFromCents(rentTotalCents)
-                                        : formatDecimalFromCents(maintenanceTotalCents)}
+                                        ? formatMoneyFromCents(rentTotalCents)
+                                        : formatMoneyFromCents(maintenanceTotalCents)}
                                 </div>
                             </div>
 
@@ -288,7 +555,14 @@ export default function Settings({ settings }) {
                                 </div>
                                 <input
                                     value={draftAmount}
-                                    onChange={(e) => setDraftAmount(e.target.value)}
+                                onChange={(e) =>
+                                    setDraftAmount(sanitizeMoneyInput(e.target.value))
+                                }
+                                onBlur={() =>
+                                    setDraftAmount(
+                                        draftAmount ? formatMoneyInput(draftAmount) : '',
+                                    )
+                                }
                                     inputMode="decimal"
                                     placeholder="0,00"
                                     className="h-12 w-full border-0 bg-transparent p-0 text-sm font-semibold text-white placeholder:text-slate-500 focus:outline-none"
@@ -330,7 +604,20 @@ export default function Settings({ settings }) {
                                                     const next = [...currentItems];
                                                     next[idx] = {
                                                         ...next[idx],
-                                                        amount_brl: e.target.value,
+                                                        amount_brl: sanitizeMoneyInput(
+                                                            e.target.value,
+                                                        ),
+                                                    };
+                                                    setCurrentItems(next);
+                                                }}
+                                                onBlur={() => {
+                                                    const next = [...currentItems];
+                                                    const current = next[idx]?.amount_brl ?? '';
+                                                    next[idx] = {
+                                                        ...next[idx],
+                                                        amount_brl: current
+                                                            ? formatMoneyInput(current)
+                                                            : '',
                                                     };
                                                     setCurrentItems(next);
                                                 }}

@@ -111,6 +111,7 @@ class DriverCostReportsTest extends TestCase
 
         $content = $response->streamedContent();
         $this->assertStringContainsString("Dia,Registros,Ganhos,Km,Combustível,Despesas", $content);
+        $this->assertStringContainsString("Fixos (estim.)", $content);
     }
 
     public function test_driver_pro_can_export_month_pdf_html(): void

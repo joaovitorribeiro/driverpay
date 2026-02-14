@@ -66,10 +66,15 @@ function periodSubtitle(period) {
     return 'Últimos 7 dias (Free)';
 }
 
-function StatCard({ title, value }) {
+function StatCard({ title, subtitle, value }) {
     return (
         <div className="rounded-[22px] border border-white/10 bg-[#0b1424]/55 p-6 shadow-lg shadow-black/25 backdrop-blur">
             <div className="text-sm font-semibold text-white/70">{title}</div>
+            {subtitle ? (
+                <div className="mt-1 text-xs font-semibold text-white/45">
+                    {subtitle}
+                </div>
+            ) : null}
             <div className="mt-3 text-2xl font-extrabold tracking-tight text-white">
                 {value}
             </div>
@@ -101,7 +106,8 @@ export default function Index({ costs, filters, entitlements, summary, report })
     const items = costs?.data ?? [];
     const month = filters?.month ?? formatMonthKey(new Date());
     const year = filters?.year ?? String(new Date().getFullYear());
-    const isReport = isPro && (period === 'month' || period === 'year');
+    const isReport =
+        isPro && (period === '7d' || period === 'month' || period === 'year' || period === 'range');
     const nowMonth = formatMonthKey(new Date());
     const nowYear = String(new Date().getFullYear());
     const [exportOpen, setExportOpen] = useState(false);
@@ -154,6 +160,15 @@ export default function Index({ costs, filters, entitlements, summary, report })
 
         window.location.href = url;
     };
+
+    const fixedSubtitle =
+        period === 'year'
+            ? 'Soma de 12 meses'
+            : period === 'month'
+              ? 'Total do mês'
+              : period === '7d'
+                ? 'Pró-rata (7 dias)'
+                : 'Pró-rata (período)';
 
     const applyRange = () => {
         if (!isPro) {
@@ -507,11 +522,20 @@ export default function Index({ costs, filters, entitlements, summary, report })
                                 />
                                 <StatCard
                                     title="Fixos (estim.)"
+                                    subtitle={fixedSubtitle}
                                     value={formatMoneyFromCents(
                                         report?.totals?.fixed_cents ?? 0,
                                     )}
                                 />
-                                <StatCard title="Km" value={report?.totals?.km ?? 0} />
+                                <StatCard
+                                    title="Km"
+                                    subtitle="Não registrado no histórico"
+                                    value={
+                                        (report?.totals?.km ?? 0) > 0
+                                            ? report?.totals?.km
+                                            : '—'
+                                    }
+                                />
                                 <StatCard
                                     title="Registros"
                                     value={report?.totals?.records ?? 0}

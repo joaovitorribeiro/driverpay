@@ -84,17 +84,22 @@ export default function DriverDashboard({ driver_settings }) {
 
         const fuelPriceBrl = Number(String(driver_settings?.fuel_price_brl ?? '0').replace(',', '.'));
         const consumption = Number(String(driver_settings?.consumption_km_per_l ?? '0').replace(',', '.'));
-        const maintenanceMonthlyBrl = Number(String(driver_settings?.maintenance_monthly_brl ?? '0').replace(',', '.'));
-        const rentMonthlyBrl = Number(String(driver_settings?.rent_monthly_brl ?? '0').replace(',', '.'));
+        const maintenanceMonthlyCents = parseBrlToCents(driver_settings?.maintenance_monthly_brl ?? '0');
+        const rentMonthlyCents = parseBrlToCents(driver_settings?.rent_monthly_brl ?? '0');
+        const extraMonthlyCents = (driver_settings?.extra_monthly_items ?? []).reduce(
+            (sum, item) => sum + parseBrlToCents(item?.amount_brl ?? '0'),
+            0,
+        );
 
         const fuelCents =
             consumption > 0 && kmValue > 0 && fuelPriceBrl > 0
                 ? Math.round(((kmValue / consumption) * fuelPriceBrl) * 100)
                 : 0;
 
-        const fixedDailyBrl = (Number.isFinite(maintenanceMonthlyBrl) ? maintenanceMonthlyBrl : 0) / 30
-            + (Number.isFinite(rentMonthlyBrl) ? rentMonthlyBrl : 0) / 30;
-        const fixedCents = Math.round(fixedDailyBrl * 100);
+        const fixedCents =
+            Math.round(maintenanceMonthlyCents / 30)
+            + Math.round(rentMonthlyCents / 30)
+            + Math.round(extraMonthlyCents / 30);
 
         const totalCostsCents = variableCents + fuelCents + fixedCents;
         const netCents = gainsCents - totalCostsCents;

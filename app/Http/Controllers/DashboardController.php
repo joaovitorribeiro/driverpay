@@ -147,6 +147,7 @@ class DashboardController extends Controller
                 'consumption_km_per_l' => $settings?->consumption_km_per_l !== null ? (string) $settings->consumption_km_per_l : '0',
                 'maintenance_monthly_brl' => $settings?->maintenance_monthly_brl !== null ? (string) $settings->maintenance_monthly_brl : '0',
                 'rent_monthly_brl' => $settings?->rent_monthly_brl !== null ? (string) $settings->rent_monthly_brl : '0',
+                'extra_monthly_items' => $settings?->extra_monthly_items ?? [],
             ] : null,
         ]);
     }

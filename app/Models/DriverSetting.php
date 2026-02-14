@@ -15,6 +15,7 @@ class DriverSetting extends Model
         'maintenance_items',
         'rent_monthly_brl',
         'rent_items',
+        'extra_monthly_items',
     ];
 
     protected $casts = [
@@ -24,6 +25,7 @@ class DriverSetting extends Model
         'maintenance_items' => 'array',
         'rent_monthly_brl' => 'decimal:2',
         'rent_items' => 'array',
+        'extra_monthly_items' => 'array',
     ];
 
     public function user(): BelongsTo

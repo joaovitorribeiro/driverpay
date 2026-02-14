@@ -87,14 +87,35 @@ class DriverCostController extends Controller
         $bestDate = $bestDay?->date;
         $worstDate = $worstDay?->date;
 
-        if ($isPro && ($resolvedPeriod === 'month' || $resolvedPeriod === 'year')) {
-            $report = $this->buildReport(
-                query: $summaryQuery,
-                period: $resolvedPeriod,
-                month: $month,
-                year: $year,
-                settings: $settings,
-            );
+        if ($isPro && in_array($resolvedPeriod, ['7d', 'month', 'year', 'range'], true)) {
+            if ($resolvedPeriod === 'month' || $resolvedPeriod === 'year') {
+                $report = $this->buildReport(
+                    query: $summaryQuery,
+                    period: $resolvedPeriod,
+                    month: $month,
+                    year: $year,
+                    settings: $settings,
+                );
+            } elseif ($resolvedPeriod === '7d') {
+                $to = CarbonImmutable::now()->startOfDay();
+                $from = $to->subDays(6)->startOfDay();
+                $report = $this->buildRangeReport(
+                    query: $summaryQuery,
+                    from: $from,
+                    to: $to,
+                    settings: $settings,
+                    periodLabel: 'Últimos 7 dias',
+                );
+            } else {
+                $label = $fromDate->format('d/m/Y') . ' a ' . $toDate->format('d/m/Y');
+                $report = $this->buildRangeReport(
+                    query: $summaryQuery,
+                    from: $fromDate,
+                    to: $toDate,
+                    settings: $settings,
+                    periodLabel: $label,
+                );
+            }
         }
 
         $costs = $query
@@ -258,6 +279,13 @@ class DriverCostController extends Controller
 
             $type = $report['type'] ?? null;
             $rows = $report['rows'] ?? [];
+            $totals = $report['totals'] ?? [];
+            $recordsTotal = (int) ($totals['records'] ?? 0);
+            $gainsTotalCents = (int) ($totals['gains_cents'] ?? 0);
+            $fuelTotalCents = (int) ($totals['fuel_cents'] ?? 0);
+            $expensesTotalCents = (int) ($totals['expenses_cents'] ?? 0);
+            $fixedTotalCents = (int) ($totals['fixed_cents'] ?? 0);
+            $totalCostsCents = $fuelTotalCents + $expensesTotalCents + $fixedTotalCents;
 
             if ($type === 'year') {
                 fputcsv($out, ['Mês', 'Registros', 'Ganhos', 'Km', 'Combustível', 'Despesas']);
@@ -277,7 +305,11 @@ class DriverCostController extends Controller
             }
 
             fputcsv($out, []);
-            fputcsv($out, ['Total', $report['totals']['records'] ?? 0, '', '', '', $this->formatBrlFromCents((int) ($report['totals']['expenses_cents'] ?? 0))]);
+            fputcsv($out, ['Total registros', $recordsTotal, $this->formatBrlFromCents($gainsTotalCents), '', '', '']);
+            fputcsv($out, ['Total combustível', '', '', '', '', $this->formatBrlFromCents($fuelTotalCents)]);
+            fputcsv($out, ['Total despesas', '', '', '', '', $this->formatBrlFromCents($expensesTotalCents)]);
+            fputcsv($out, ['Fixos (estim.)', '', '', '', '', $this->formatBrlFromCents($fixedTotalCents)]);
+            fputcsv($out, ['Total custos (estim.)', '', '', '', '', $this->formatBrlFromCents($totalCostsCents)]);
 
             fclose($out);
         }, $filename, [
@@ -424,7 +456,8 @@ class DriverCostController extends Controller
 
         $maintenanceCents = $this->brlToCents($settings?->maintenance_monthly_brl !== null ? (string) $settings->maintenance_monthly_brl : null);
         $rentCents = $this->brlToCents($settings?->rent_monthly_brl !== null ? (string) $settings->rent_monthly_brl : null);
-        $fixedMonthlyCents = $maintenanceCents + $rentCents;
+        $extraMonthlyCents = $this->sumMonthlyItemsCents($settings?->extra_monthly_items);
+        $fixedMonthlyCents = $maintenanceCents + $rentCents + $extraMonthlyCents;
         $fixedDailyCents = (int) round($fixedMonthlyCents / 30);
         $fixedCents = $fixedDailyCents * ((int) $days + 1);
 
@@ -508,6 +541,25 @@ class DriverCostController extends Controller
         return (int) round($num * 100);
     }
 
+    private function sumMonthlyItemsCents($items): int
+    {
+        if (! is_iterable($items)) {
+            return 0;
+        }
+
+        $total = 0;
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $amount = $item['amount_brl'] ?? null;
+            $total += $this->brlToCents(is_string($amount) ? $amount : null);
+        }
+
+        return $total;
+    }
+
     private function formatBrlFromCents(int $cents): string
     {
         $value = $cents / 100;
@@ -520,7 +572,8 @@ class DriverCostController extends Controller
 
         $maintenanceCents = $this->brlToCents($settings?->maintenance_monthly_brl !== null ? (string) $settings->maintenance_monthly_brl : null);
         $rentCents = $this->brlToCents($settings?->rent_monthly_brl !== null ? (string) $settings->rent_monthly_brl : null);
-        $fixedMonthlyCents = $maintenanceCents + $rentCents;
+        $extraMonthlyCents = $this->sumMonthlyItemsCents($settings?->extra_monthly_items);
+        $fixedMonthlyCents = $maintenanceCents + $rentCents + $extraMonthlyCents;
         $fixedCents = $period === 'year' ? $fixedMonthlyCents * 12 : $fixedMonthlyCents;
 
         $daily = (clone $query)

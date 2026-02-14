@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\DriverSetting;
 use App\Support\Roles;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,6 +55,9 @@ class DriverSettingsTest extends TestCase
                 'consumption_km_per_l' => '12',
                 'maintenance_monthly_brl' => '500',
                 'rent_monthly_brl' => '0',
+                'extra_monthly_items' => [
+                    ['id' => 'x1', 'label' => 'Seguro', 'amount_brl' => '120,50'],
+                ],
             ])
             ->assertRedirect('/settings');
 
@@ -64,6 +68,10 @@ class DriverSettingsTest extends TestCase
             'maintenance_monthly_brl' => '500.00',
             'rent_monthly_brl' => '0.00',
         ]);
+
+        $settings = DriverSetting::query()->where('user_id', $driver->id)->first();
+        $this->assertNotNull($settings);
+        $this->assertIsArray($settings->extra_monthly_items);
+        $this->assertCount(1, $settings->extra_monthly_items);
     }
 }
-
