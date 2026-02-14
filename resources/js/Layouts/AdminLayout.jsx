@@ -128,7 +128,7 @@ export default function AdminLayout({ header, children }) {
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900">
             <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
-                <div className="flex grow flex-col border-r border-slate-200 bg-white">
+                <div className="flex grow flex-col border-r border-slate-200 bg-gradient-to-b from-white to-slate-50">
                     <div className="flex h-16 items-center gap-3 px-6">
                         <Link href="/" className="inline-flex items-center gap-3">
                             <ApplicationLogo className="h-9 w-9 fill-current text-slate-900" />
@@ -156,11 +156,19 @@ export default function AdminLayout({ header, children }) {
                                     href={item.href}
                                     className={
                                         (item.active
-                                            ? 'bg-slate-900 text-white'
-                                            : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900') +
-                                        ' flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition'
+                                            ? 'bg-slate-900 text-white shadow-sm ring-1 ring-black/10'
+                                            : 'text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 hover:ring-1 hover:ring-slate-200') +
+                                        ' group relative flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-semibold transition'
                                     }
                                 >
+                                    <span
+                                        className={
+                                            (item.active
+                                                ? 'bg-emerald-500'
+                                                : 'bg-transparent group-hover:bg-slate-200') +
+                                            ' absolute left-2 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full transition'
+                                        }
+                                    />
                                     <span
                                         className={
                                             (item.active
@@ -257,7 +265,7 @@ export default function AdminLayout({ header, children }) {
                     aria-modal="true"
                 >
                     <div className="flex h-full flex-col">
-                        <div className="flex h-16 items-center justify-between gap-3 border-b border-slate-200 px-5">
+                        <div className="flex h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white/80 px-5 backdrop-blur">
                             <Link
                                 href="/"
                                 className="inline-flex items-center gap-3"
@@ -299,11 +307,19 @@ export default function AdminLayout({ header, children }) {
                                         onClick={() => setIsMobileMenuOpen(false)}
                                         className={
                                             (item.active
-                                                ? 'bg-slate-900 text-white'
-                                                : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900') +
-                                            ' flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold'
+                                                ? 'bg-slate-900 text-white shadow-sm ring-1 ring-black/10'
+                                                : 'text-slate-700 hover:bg-slate-100/80 hover:text-slate-900 hover:ring-1 hover:ring-slate-200') +
+                                            ' group relative flex items-center gap-3 rounded-2xl px-4 py-2.5 text-sm font-semibold transition'
                                         }
                                     >
+                                        <span
+                                            className={
+                                                (item.active
+                                                    ? 'bg-emerald-500'
+                                                    : 'bg-transparent group-hover:bg-slate-200') +
+                                                ' absolute left-2 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full transition'
+                                            }
+                                        />
                                         <span
                                             className={
                                                 (item.active
