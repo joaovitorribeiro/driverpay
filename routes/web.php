@@ -3,6 +3,7 @@
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DriverAccountController;
 use App\Http\Controllers\DriverCostController;
+use App\Http\Controllers\DriverDayRecordController;
 use App\Http\Controllers\DriverReferController;
 use App\Http\Controllers\DriverSettingsController;
 use App\Http\Controllers\LegalDocumentController;
@@ -56,6 +57,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/settings', [DriverSettingsController::class, 'show'])->name('settings');
     Route::patch('/settings', [DriverSettingsController::class, 'update'])->name('settings.update');
+
+    Route::post('/day-records', [DriverDayRecordController::class, 'upsert'])
+        ->name('day-records.upsert');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

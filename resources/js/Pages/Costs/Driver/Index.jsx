@@ -100,10 +100,11 @@ function ArrowButton({ disabled, onClick, children }) {
     );
 }
 
-export default function Index({ costs, filters, entitlements, summary, report }) {
+export default function Index({ day_records, costs, filters, entitlements, summary, report }) {
     const period = filters?.period ?? '7d';
     const isPro = !!entitlements?.is_pro;
     const items = costs?.data ?? [];
+    const dayRecords = Array.isArray(day_records) ? day_records : [];
     const month = filters?.month ?? formatMonthKey(new Date());
     const year = filters?.year ?? String(new Date().getFullYear());
     const isReport =
@@ -529,7 +530,7 @@ export default function Index({ costs, filters, entitlements, summary, report })
                                 />
                                 <StatCard
                                     title="Km"
-                                    subtitle="Não registrado no histórico"
+                                    subtitle="Vem do registro do dia"
                                     value={
                                         (report?.totals?.km ?? 0) > 0
                                             ? report?.totals?.km
@@ -645,6 +646,75 @@ export default function Index({ costs, filters, entitlements, summary, report })
                         </>
                     ) : (
                         <>
+                            <div className="mt-6 rounded-[28px] border border-white/10 bg-[#0b1424]/55 p-6 shadow-xl shadow-black/35 backdrop-blur">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="text-2xl font-bold tracking-tight text-white">
+                                        Registros do dia
+                                    </div>
+                                    <Link
+                                        href={route('dashboard')}
+                                        className="inline-flex h-10 items-center justify-center rounded-full border border-white/10 bg-white/5 px-5 text-sm font-semibold text-white/90 hover:bg-white/10"
+                                    >
+                                        Abrir hoje
+                                    </Link>
+                                </div>
+
+                                {dayRecords.length ? (
+                                    <div className="mt-5 space-y-3">
+                                        {dayRecords.map((r) => (
+                                            <div
+                                                key={r.id}
+                                                className="rounded-[22px] border border-white/10 bg-[#0b1424]/40 p-5"
+                                            >
+                                                <div className="flex items-start justify-between gap-4">
+                                                    <div>
+                                                        <div className="text-xs font-semibold tracking-widest text-slate-500">
+                                                            {r.date}
+                                                        </div>
+                                                        <div className="mt-2 grid gap-1 text-sm text-white/85">
+                                                            <div>
+                                                                Ganhos:{' '}
+                                                                <span className="font-semibold text-white">
+                                                                    {formatMoneyFromCents(
+                                                                        r.gains_cents ?? 0,
+                                                                    )}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                Km:{' '}
+                                                                <span className="font-semibold text-white">
+                                                                    {r.km ?? 0}
+                                                                </span>
+                                                            </div>
+                                                            <div>
+                                                                Despesas:{' '}
+                                                                <span className="font-semibold text-white">
+                                                                    {formatMoneyFromCents(
+                                                                        r.expenses_cents ?? 0,
+                                                                    )}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="text-xs font-semibold tracking-widest text-slate-500">
+                                                            Itens
+                                                        </div>
+                                                        <div className="mt-2 text-base font-bold text-white">
+                                                            {(r.expenses ?? []).length}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="mt-5 text-base text-slate-400">
+                                        Nenhum registro salvo no período.
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="mt-6 rounded-[28px] border border-white/10 bg-[#0b1424]/60 p-6 shadow-xl shadow-black/35 backdrop-blur">
                                 <div className="flex items-center justify-between gap-4">
                                     <div className="text-2xl font-bold tracking-tight text-white">

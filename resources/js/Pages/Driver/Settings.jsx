@@ -3,6 +3,14 @@ import { Head, useForm, usePage } from '@inertiajs/react';
 import { Transition } from '@headlessui/react';
 import Modal from '@/Components/Modal';
 import { useMemo, useState } from 'react';
+import {
+    parseLocaleNumber,
+    parseMoneyToCents,
+    formatMoneyInput,
+    sanitizeDecimalInput,
+    sanitizeMoneyInput,
+    formatPtBrDecimal,
+} from '@/Utils/numbers';
 
 function Field({
     label,
@@ -41,20 +49,9 @@ function Field({
     );
 }
 
-function parseBrlToCents(value) {
-    if (!value) return 0;
-    const normalized = String(value).replace(/[^\d,.-]/g, '');
-    if (!normalized) return 0;
-    const withoutThousands = normalized.replace(/\./g, '');
-    const dotDecimal = withoutThousands.replace(',', '.');
-    const num = Number(dotDecimal);
-    if (!Number.isFinite(num)) return 0;
-    return Math.round(num * 100);
-}
-
 function formatDecimalFromCents(cents) {
     const value = (Number(cents ?? 0) || 0) / 100;
-    return value.toFixed(2);
+    return formatPtBrDecimal(value, 2);
 }
 
 function formatMoneyFromCents(cents) {
@@ -65,69 +62,9 @@ function formatMoneyFromCents(cents) {
     });
 }
 
-function formatMoneyInput(value) {
-    if (!value) return '';
-    const cents = parseBrlToCents(value);
-    const num = cents / 100;
-    if (!Number.isFinite(num)) return '';
-    return num.toLocaleString('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    });
-}
-
-function normalizeNumericInput(raw) {
-    if (raw === null || raw === undefined) return '';
-    let s = String(raw);
-    s = s.replace(/[^\d,.-]/g, '');
-
-    const hasComma = s.includes(',');
-    const firstCommaIndex = s.indexOf(',');
-    if (hasComma) {
-        const before = s.slice(0, firstCommaIndex);
-        const after = s.slice(firstCommaIndex + 1);
-        s =
-            before.replace(/[.,]/g, '') +
-            ',' +
-            after.replace(/[.,]/g, '');
-    }
-
-    const hasDot = s.includes('.');
-    if (!hasComma && hasDot) {
-        const firstDotIndex = s.indexOf('.');
-        const before = s.slice(0, firstDotIndex);
-        const after = s.slice(firstDotIndex + 1);
-        s = before.replace(/[.,]/g, '') + '.' + after.replace(/[.,]/g, '');
-    }
-
-    s = s.replace(/[.,](?=[.,])/g, '');
-
-    const negative = s.startsWith('-');
-    s = s.replace(/-/g, '');
-    s = (negative ? '-' : '') + s;
-
-    return s;
-}
-
-function sanitizeMoneyInput(raw) {
-    const s = normalizeNumericInput(raw);
-    const withComma = s.replace('.', ',');
-    const [intPart, decPart] = withComma.split(',');
-    const dec = typeof decPart === 'string' ? decPart.slice(0, 2) : undefined;
-    return dec === undefined ? intPart : `${intPart},${dec}`;
-}
-
-function sanitizeDecimalInput(raw, maxDecimals = 2) {
-    const s = normalizeNumericInput(raw);
-    const withComma = s.replace('.', ',');
-    const [intPart, decPart] = withComma.split(',');
-    const dec = typeof decPart === 'string' ? decPart.slice(0, maxDecimals) : undefined;
-    return dec === undefined ? intPart : `${intPart},${dec}`;
-}
-
 function sumItemsCents(items) {
     if (!Array.isArray(items)) return 0;
-    return items.reduce((sum, item) => sum + parseBrlToCents(item?.amount_brl ?? ''), 0);
+    return items.reduce((sum, item) => sum + parseMoneyToCents(item?.amount_brl ?? ''), 0);
 }
 
 function ItemizeButton({ onClick, count }) {
@@ -146,11 +83,18 @@ export default function Settings({ settings }) {
     const billingLabel = usePage().props.billing?.label ?? 'Conta Gratuita';
 
     const form = useForm({
-        fuel_price_brl: settings?.fuel_price_brl ?? '0',
-        consumption_km_per_l: settings?.consumption_km_per_l ?? '0',
-        maintenance_monthly_brl: settings?.maintenance_monthly_brl ?? '',
+        fuel_price_brl: formatMoneyInput(settings?.fuel_price_brl ?? '0'),
+        consumption_km_per_l: formatPtBrDecimal(
+            parseLocaleNumber(settings?.consumption_km_per_l ?? 0, { maxDecimals: 2 }),
+            2,
+        ),
+        maintenance_monthly_brl: settings?.maintenance_monthly_brl
+            ? formatMoneyInput(settings?.maintenance_monthly_brl)
+            : '',
         maintenance_items: settings?.maintenance_items ?? [],
-        rent_monthly_brl: settings?.rent_monthly_brl ?? '',
+        rent_monthly_brl: settings?.rent_monthly_brl
+            ? formatMoneyInput(settings?.rent_monthly_brl)
+            : '',
         rent_items: settings?.rent_items ?? [],
         extra_monthly_items: settings?.extra_monthly_items ?? [],
     });

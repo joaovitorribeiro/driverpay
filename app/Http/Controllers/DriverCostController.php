@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreDriverCostRequest;
 use App\Http\Requests\UpdateDriverCostRequest;
 use App\Models\DriverCost;
+use App\Models\DriverDayRecord;
 use App\Support\Roles;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
@@ -52,18 +53,25 @@ class DriverCostController extends Controller
         $month = $this->resolveMonth($monthParam);
         $year = $this->resolveYear($yearParam);
         [$fromDate, $toDate] = $this->resolveRange($fromParam, $toParam);
+        $dayFrom = null;
+        $dayTo = null;
 
         if ($resolvedPeriod === '7d') {
             $from = CarbonImmutable::now()->subDays(6)->startOfDay()->toDateString();
             $query->whereDate('date', '>=', $from);
+            $dayFrom = $from;
         } elseif ($resolvedPeriod === 'month') {
             $from = $month->startOfMonth()->toDateString();
             $to = $month->endOfMonth()->toDateString();
             $query->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
+            $dayFrom = $from;
+            $dayTo = $to;
         } elseif ($resolvedPeriod === 'year') {
             $from = $year->startOfYear()->toDateString();
             $to = $year->endOfYear()->toDateString();
             $query->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
+            $dayFrom = $from;
+            $dayTo = $to;
         } elseif ($resolvedPeriod === 'all') {
             if ($user && $user->hasRole(Roles::DRIVER)) {
                 $query->limit(1000);
@@ -72,6 +80,8 @@ class DriverCostController extends Controller
             $from = $fromDate->toDateString();
             $to = $toDate->toDateString();
             $query->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
+            $dayFrom = $from;
+            $dayTo = $to;
         }
 
         $summaryQuery = (clone $query)->reorder();
@@ -138,7 +148,44 @@ class DriverCostController extends Controller
                 ],
             ]);
 
+        $dayRecords = [];
+        if ($user && $user->hasRole(Roles::DRIVER)) {
+            $dayQuery = DriverDayRecord::query()
+                ->where('user_id', $user->id)
+                ->orderByDesc('date')
+                ->orderByDesc('id');
+
+            if (is_string($dayFrom)) {
+                $dayQuery->whereDate('date', '>=', $dayFrom);
+            }
+            if (is_string($dayTo)) {
+                $dayQuery->whereDate('date', '<=', $dayTo);
+            }
+
+            $limit = $resolvedPeriod === 'all' ? 1000 : 90;
+            $dayRecords = $dayQuery
+                ->limit($limit)
+                ->get()
+                ->map(function (DriverDayRecord $record) {
+                    $expensesCents = 0;
+                    foreach ($record->expenses ?? [] as $item) {
+                        $expensesCents += (int) ($item['amount_cents'] ?? 0);
+                    }
+
+                    return [
+                        'id' => $record->id,
+                        'date' => $record->date?->format('Y-m-d'),
+                        'gains_cents' => (int) $record->gains_cents,
+                        'km' => (float) ($record->km ?? 0),
+                        'expenses_cents' => $expensesCents,
+                        'expenses' => $record->expenses ?? [],
+                    ];
+                })
+                ->all();
+        }
+
         return Inertia::render($this->page('Index', $request), [
+            'day_records' => $dayRecords,
             'costs' => $costs,
             'filters' => [
                 'period' => $resolvedPeriod,
@@ -525,20 +572,41 @@ class DriverCostController extends Controller
             return 0;
         }
 
-        $normalized = preg_replace('/[^\d,.\-]/', '', $value);
-        if (! is_string($normalized) || $normalized === '') {
+        $raw = preg_replace('/[^\d,.\-]/', '', $value);
+        if (! is_string($raw) || $raw === '') {
             return 0;
         }
 
-        $normalized = str_replace('.', '', $normalized);
-        $normalized = str_replace(',', '.', $normalized);
+        $negative = str_starts_with($raw, '-');
+        $raw = str_replace('-', '', $raw);
 
-        $num = (float) $normalized;
+        $hasComma = str_contains($raw, ',');
+        $hasDot = str_contains($raw, '.');
+
+        if ($hasComma) {
+            $raw = str_replace('.', '', $raw);
+            $raw = str_replace(',', '.', $raw);
+        } elseif ($hasDot) {
+            $parts = explode('.', $raw);
+            if (count($parts) > 2) {
+                $last = array_pop($parts);
+                $int = implode('', $parts);
+                if (is_string($last) && strlen($last) <= 2) {
+                    $raw = $int . '.' . $last;
+                } else {
+                    $raw = $int . $last;
+                }
+            }
+        }
+
+        $num = (float) $raw;
         if (! is_finite($num)) {
             return 0;
         }
 
-        return (int) round($num * 100);
+        $cents = (int) round($num * 100);
+        $cents = $negative ? -$cents : $cents;
+        return $cents;
     }
 
     private function sumMonthlyItemsCents($items): int

@@ -3,17 +3,13 @@ import Modal from '@/Components/Modal';
 import { formatMoneyFromCents } from '@/Pages/Costs/Partials/formatMoney';
 import { Head, Link } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
-
-function parseBrlToCents(value) {
-    if (!value) return 0;
-    const normalized = String(value).replace(/[^\d,.-]/g, '');
-    if (!normalized) return 0;
-    const withoutThousands = normalized.replace(/\./g, '');
-    const dotDecimal = withoutThousands.replace(',', '.');
-    const num = Number(dotDecimal);
-    if (!Number.isFinite(num)) return 0;
-    return Math.round(num * 100);
-}
+import {
+    parseLocaleNumber,
+    parseMoneyToCents,
+    sanitizeDecimalInput,
+    sanitizeMoneyInput,
+    formatMoneyInput,
+} from '@/Utils/numbers';
 
 function formatBrlFromCents(cents) {
     return new Intl.NumberFormat('pt-BR', {
@@ -58,6 +54,7 @@ export default function DriverDashboard({ driver_settings }) {
     const [expenses, setExpenses] = useState([]);
     const [isExpensesOpen, setIsExpensesOpen] = useState(false);
     const [savedAt, setSavedAt] = useState(null);
+    const [saveError, setSaveError] = useState('');
 
     useEffect(() => {
         const raw = window.localStorage.getItem(`driverpay:day:${dateKey}`);
@@ -74,20 +71,25 @@ export default function DriverDashboard({ driver_settings }) {
     }, [dateKey]);
 
     const totals = useMemo(() => {
-        const gainsCents = parseBrlToCents(gainsBrl);
-        const kmNumber = Number(String(km).replace(',', '.'));
-        const kmValue = Number.isFinite(kmNumber) ? kmNumber : 0;
+        const gainsCents = parseMoneyToCents(gainsBrl);
+        const kmValue = parseLocaleNumber(km, { maxDecimals: 1 });
 
         const variableCents = (expenses ?? []).reduce((sum, item) => {
-            return sum + parseBrlToCents(item?.amount_brl ?? '');
+            return sum + parseMoneyToCents(item?.amount_brl ?? '');
         }, 0);
 
-        const fuelPriceBrl = Number(String(driver_settings?.fuel_price_brl ?? '0').replace(',', '.'));
-        const consumption = Number(String(driver_settings?.consumption_km_per_l ?? '0').replace(',', '.'));
-        const maintenanceMonthlyCents = parseBrlToCents(driver_settings?.maintenance_monthly_brl ?? '0');
-        const rentMonthlyCents = parseBrlToCents(driver_settings?.rent_monthly_brl ?? '0');
+        const fuelPriceBrl = parseLocaleNumber(driver_settings?.fuel_price_brl ?? '0', {
+            maxDecimals: 2,
+        });
+        const consumption = parseLocaleNumber(driver_settings?.consumption_km_per_l ?? '0', {
+            maxDecimals: 2,
+        });
+        const maintenanceMonthlyCents = parseMoneyToCents(
+            driver_settings?.maintenance_monthly_brl ?? '0',
+        );
+        const rentMonthlyCents = parseMoneyToCents(driver_settings?.rent_monthly_brl ?? '0');
         const extraMonthlyCents = (driver_settings?.extra_monthly_items ?? []).reduce(
-            (sum, item) => sum + parseBrlToCents(item?.amount_brl ?? '0'),
+            (sum, item) => sum + parseMoneyToCents(item?.amount_brl ?? '0'),
             0,
         );
 
@@ -120,15 +122,60 @@ export default function DriverDashboard({ driver_settings }) {
         };
     }, [driver_settings, expenses, gainsBrl, km]);
 
-    const save = () => {
+    const save = async () => {
         const payload = {
+            date: dateKey,
             gains_brl: gainsBrl,
             km: km,
             expenses,
             saved_at: new Date().toISOString(),
         };
-        window.localStorage.setItem(`driverpay:day:${dateKey}`, JSON.stringify(payload));
         setSavedAt(payload.saved_at);
+
+        setSaveError('');
+        setIsExpensesOpen(false);
+        setGainsBrl('');
+        setKm('');
+        setExpenses([]);
+        window.localStorage.removeItem(`driverpay:day:${dateKey}`);
+
+        try {
+            const token = document
+                .querySelector('meta[name="csrf-token"]')
+                ?.getAttribute('content');
+
+            const response = await fetch(route('day-records.upsert'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    ...(token ? { 'X-CSRF-TOKEN': token } : {}),
+                },
+                body: JSON.stringify({
+                    date: dateKey,
+                    gains_brl: payload.gains_brl,
+                    km: payload.km,
+                    expenses: payload.expenses,
+                }),
+            });
+
+            if (!response.ok) {
+                setSaveError('Não foi possível salvar no servidor.');
+                setGainsBrl(payload.gains_brl);
+                setKm(payload.km);
+                setExpenses(payload.expenses);
+                window.localStorage.setItem(
+                    `driverpay:day:${dateKey}`,
+                    JSON.stringify(payload),
+                );
+            }
+        } catch {
+            setSaveError('Não foi possível salvar no servidor.');
+            setGainsBrl(payload.gains_brl);
+            setKm(payload.km);
+            setExpenses(payload.expenses);
+            window.localStorage.setItem(`driverpay:day:${dateKey}`, JSON.stringify(payload));
+        }
     };
 
     return (
@@ -176,7 +223,8 @@ export default function DriverDashboard({ driver_settings }) {
                                 <div className="mt-2 flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0a1020]/70 px-5 py-4 shadow-inner shadow-black/30">
                                     <input
                                         value={gainsBrl}
-                                        onChange={(e) => setGainsBrl(e.target.value)}
+                                        onChange={(e) => setGainsBrl(sanitizeMoneyInput(e.target.value))}
+                                        onBlur={() => setGainsBrl(gainsBrl ? formatMoneyInput(gainsBrl) : '')}
                                         inputMode="decimal"
                                         placeholder="0,00"
                                         className="w-full border-0 bg-transparent p-0 text-xl font-semibold text-white placeholder:text-slate-500 focus:outline-none"
@@ -194,7 +242,8 @@ export default function DriverDashboard({ driver_settings }) {
                                 <div className="mt-2 flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0a1020]/70 px-5 py-4 shadow-inner shadow-black/30">
                                     <input
                                         value={km}
-                                        onChange={(e) => setKm(e.target.value)}
+                                        onChange={(e) => setKm(sanitizeDecimalInput(e.target.value, 1))}
+                                        onBlur={() => setKm(sanitizeDecimalInput(km, 1).replace(/,$/, ''))}
                                         inputMode="decimal"
                                         placeholder="0"
                                         className="w-full border-0 bg-transparent p-0 text-xl font-semibold text-white placeholder:text-slate-500 focus:outline-none"
@@ -238,6 +287,11 @@ export default function DriverDashboard({ driver_settings }) {
                             {savedAt ? (
                                 <div className="text-center text-xs font-semibold text-white/55">
                                     Salvo
+                                </div>
+                            ) : null}
+                            {saveError ? (
+                                <div className="text-center text-xs font-semibold text-red-300">
+                                    {saveError}
                                 </div>
                             ) : null}
                         </div>
@@ -379,7 +433,17 @@ export default function DriverDashboard({ driver_settings }) {
                                                     const next = [...expenses];
                                                     next[idx] = {
                                                         ...next[idx],
-                                                        amount_brl: e.target.value,
+                                                        amount_brl: sanitizeMoneyInput(e.target.value),
+                                                    };
+                                                    setExpenses(next);
+                                                }}
+                                                onBlur={() => {
+                                                    const next = [...expenses];
+                                                    next[idx] = {
+                                                        ...next[idx],
+                                                        amount_brl: (item?.amount_brl ?? '')
+                                                            ? formatMoneyInput(item?.amount_brl ?? '')
+                                                            : '',
                                                     };
                                                     setExpenses(next);
                                                 }}
