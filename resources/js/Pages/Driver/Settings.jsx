@@ -1,6 +1,8 @@
 import DriverLayout from '@/Layouts/DriverLayout';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { Transition } from '@headlessui/react';
+import Modal from '@/Components/Modal';
+import { useMemo, useState } from 'react';
 
 function Field({ label, hint, value, error, onChange, inputMode = 'decimal' }) {
     return (
@@ -28,6 +30,39 @@ function Field({ label, hint, value, error, onChange, inputMode = 'decimal' }) {
     );
 }
 
+function parseBrlToCents(value) {
+    if (!value) return 0;
+    const normalized = String(value).replace(/[^\d,.-]/g, '');
+    if (!normalized) return 0;
+    const withoutThousands = normalized.replace(/\./g, '');
+    const dotDecimal = withoutThousands.replace(',', '.');
+    const num = Number(dotDecimal);
+    if (!Number.isFinite(num)) return 0;
+    return Math.round(num * 100);
+}
+
+function formatDecimalFromCents(cents) {
+    const value = (Number(cents ?? 0) || 0) / 100;
+    return value.toFixed(2);
+}
+
+function sumItemsCents(items) {
+    if (!Array.isArray(items)) return 0;
+    return items.reduce((sum, item) => sum + parseBrlToCents(item?.amount_brl ?? ''), 0);
+}
+
+function ItemizeButton({ onClick, count }) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 text-sm font-extrabold tracking-wide text-white/90 hover:bg-white/10"
+        >
+            Detalhar{typeof count === 'number' && count > 0 ? ` (${count})` : ''}
+        </button>
+    );
+}
+
 export default function Settings({ settings }) {
     const billingLabel = usePage().props.billing?.label ?? 'Conta Gratuita';
 
@@ -35,8 +70,65 @@ export default function Settings({ settings }) {
         fuel_price_brl: settings?.fuel_price_brl ?? '0',
         consumption_km_per_l: settings?.consumption_km_per_l ?? '0',
         maintenance_monthly_brl: settings?.maintenance_monthly_brl ?? '',
+        maintenance_items: settings?.maintenance_items ?? [],
         rent_monthly_brl: settings?.rent_monthly_brl ?? '',
+        rent_items: settings?.rent_items ?? [],
     });
+
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [modalType, setModalType] = useState('maintenance');
+    const [draftLabel, setDraftLabel] = useState('');
+    const [draftAmount, setDraftAmount] = useState('');
+
+    const maintenanceTotalCents = useMemo(
+        () => sumItemsCents(form.data.maintenance_items),
+        [form.data.maintenance_items],
+    );
+    const rentTotalCents = useMemo(
+        () => sumItemsCents(form.data.rent_items),
+        [form.data.rent_items],
+    );
+
+    const openModal = (type) => {
+        setModalType(type);
+        setDraftLabel('');
+        setDraftAmount('');
+        setIsModalOpen(true);
+    };
+
+    const currentItems =
+        modalType === 'rent'
+            ? form.data.rent_items ?? []
+            : form.data.maintenance_items ?? [];
+
+    const setCurrentItems = (items) => {
+        if (modalType === 'rent') {
+            form.setData('rent_items', items);
+            form.setData('rent_monthly_brl', formatDecimalFromCents(sumItemsCents(items)));
+            return;
+        }
+
+        form.setData('maintenance_items', items);
+        form.setData('maintenance_monthly_brl', formatDecimalFromCents(sumItemsCents(items)));
+    };
+
+    const addItem = () => {
+        if (!draftLabel.trim()) return;
+        if (!draftAmount.trim()) return;
+
+        const next = [
+            ...(currentItems ?? []),
+            {
+                id: `${Date.now()}`,
+                label: draftLabel.trim(),
+                amount_brl: draftAmount.trim(),
+            },
+        ];
+
+        setCurrentItems(next);
+        setDraftLabel('');
+        setDraftAmount('');
+    };
 
     return (
         <DriverLayout>
@@ -65,6 +157,14 @@ export default function Settings({ settings }) {
                         }}
                         className="mt-8 rounded-[28px] border border-white/10 bg-[#0b1424]/60 p-6 shadow-2xl shadow-black/35 backdrop-blur"
                     >
+                        <button
+                            type="button"
+                            onClick={() => openModal('maintenance')}
+                            className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-6 text-sm font-extrabold tracking-wide text-white/90 hover:bg-white/10"
+                        >
+                            + Adicionar custo
+                        </button>
+
                         <div className="space-y-6">
                             <Field
                                 label="COMBUSTÍVEL (R$/L)"
@@ -93,6 +193,10 @@ export default function Settings({ settings }) {
                                     )
                                 }
                             />
+                            <ItemizeButton
+                                onClick={() => openModal('maintenance')}
+                                count={(form.data.maintenance_items ?? []).length}
+                            />
                             <Field
                                 label="ALUGUEL/PARCELA MENSAL (OPCIONAL)"
                                 value={form.data.rent_monthly_brl}
@@ -100,6 +204,10 @@ export default function Settings({ settings }) {
                                 onChange={(e) =>
                                     form.setData('rent_monthly_brl', e.target.value)
                                 }
+                            />
+                            <ItemizeButton
+                                onClick={() => openModal('rent')}
+                                count={(form.data.rent_items ?? []).length}
                             />
                         </div>
 
@@ -127,6 +235,157 @@ export default function Settings({ settings }) {
                     </form>
                 </div>
             </div>
+
+            <Modal show={isModalOpen} onClose={() => setIsModalOpen(false)} maxWidth="md">
+                <div className="bg-[#070B12] text-white">
+                    <div className="flex items-center justify-between gap-4 border-b border-white/10 px-6 py-5">
+                        <div className="text-base font-extrabold tracking-tight">
+                            {modalType === 'rent'
+                                ? 'Aluguel/Parcela mensal'
+                                : 'Manutenção mensal'}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setIsModalOpen(false)}
+                            className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+                        >
+                            Fechar
+                        </button>
+                    </div>
+
+                    <div className="space-y-4 px-6 py-6">
+                        <div className="grid gap-3">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <select
+                                    value={modalType}
+                                    onChange={(e) => setModalType(e.target.value)}
+                                    className="h-12 w-full rounded-2xl border border-white/10 bg-[#0a1020]/60 px-4 text-sm font-semibold text-white focus:outline-none"
+                                >
+                                    <option value="maintenance">
+                                        Manutenção
+                                    </option>
+                                    <option value="rent">
+                                        Aluguel/Parcela
+                                    </option>
+                                </select>
+                                <div className="rounded-2xl border border-white/10 bg-[#0a1020]/60 px-4 py-3 text-sm font-semibold text-white/80">
+                                    Total:{' '}
+                                    {modalType === 'rent'
+                                        ? formatDecimalFromCents(rentTotalCents)
+                                        : formatDecimalFromCents(maintenanceTotalCents)}
+                                </div>
+                            </div>
+
+                            <input
+                                value={draftLabel}
+                                onChange={(e) => setDraftLabel(e.target.value)}
+                                placeholder="Nome (ex.: Óleo, Revisão, Seguro)"
+                                className="h-12 w-full rounded-2xl border border-white/10 bg-[#0a1020]/60 px-4 text-sm font-semibold text-white placeholder:text-slate-500 focus:outline-none"
+                            />
+                            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0a1020]/60 px-4">
+                                <div className="text-sm font-semibold text-white/60">
+                                    R$
+                                </div>
+                                <input
+                                    value={draftAmount}
+                                    onChange={(e) => setDraftAmount(e.target.value)}
+                                    inputMode="decimal"
+                                    placeholder="0,00"
+                                    className="h-12 w-full border-0 bg-transparent p-0 text-sm font-semibold text-white placeholder:text-slate-500 focus:outline-none"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={addItem}
+                                    className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-extrabold text-emerald-950 hover:bg-emerald-400"
+                                >
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            {(currentItems ?? []).length ? (
+                                currentItems.map((item, idx) => (
+                                    <div
+                                        key={item?.id ?? idx}
+                                        className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                                    >
+                                        <div className="grid gap-3 sm:grid-cols-5 sm:items-center">
+                                            <input
+                                                value={item?.label ?? ''}
+                                                onChange={(e) => {
+                                                    const next = [...currentItems];
+                                                    next[idx] = {
+                                                        ...next[idx],
+                                                        label: e.target.value,
+                                                    };
+                                                    setCurrentItems(next);
+                                                }}
+                                                placeholder="Nome"
+                                                className="sm:col-span-3 h-11 w-full rounded-xl border border-white/10 bg-[#0a1020]/60 px-4 text-sm font-semibold text-white placeholder:text-slate-500 focus:outline-none"
+                                            />
+                                            <input
+                                                value={item?.amount_brl ?? ''}
+                                                onChange={(e) => {
+                                                    const next = [...currentItems];
+                                                    next[idx] = {
+                                                        ...next[idx],
+                                                        amount_brl: e.target.value,
+                                                    };
+                                                    setCurrentItems(next);
+                                                }}
+                                                inputMode="decimal"
+                                                placeholder="0,00"
+                                                className="sm:col-span-2 h-11 w-full rounded-xl border border-white/10 bg-[#0a1020]/60 px-4 text-sm font-semibold text-white placeholder:text-slate-500 focus:outline-none"
+                                            />
+                                        </div>
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                setCurrentItems(
+                                                    currentItems.filter((_, i) => i !== idx),
+                                                )
+                                            }
+                                            className="mt-3 rounded-xl px-3 py-2 text-xs font-extrabold text-red-300 hover:bg-white/5"
+                                        >
+                                            Remover
+                                        </button>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="text-sm font-medium text-white/55">
+                                    Nenhum item. Adicione acima.
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setCurrentItems([]);
+                                    if (modalType === 'rent') {
+                                        form.setData('rent_monthly_brl', '');
+                                    } else {
+                                        form.setData('maintenance_monthly_brl', '');
+                                    }
+                                }}
+                                className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-sm font-extrabold text-white hover:bg-white/10"
+                            >
+                                Limpar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsModalOpen(false)}
+                                className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-emerald-500 text-sm font-extrabold text-emerald-950 hover:bg-emerald-400"
+                            >
+                                Concluir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </Modal>
         </DriverLayout>
     );
 }

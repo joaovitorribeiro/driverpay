@@ -12,14 +12,18 @@ class DriverSetting extends Model
         'fuel_price_brl',
         'consumption_km_per_l',
         'maintenance_monthly_brl',
+        'maintenance_items',
         'rent_monthly_brl',
+        'rent_items',
     ];
 
     protected $casts = [
         'fuel_price_brl' => 'decimal:2',
         'consumption_km_per_l' => 'decimal:2',
         'maintenance_monthly_brl' => 'decimal:2',
+        'maintenance_items' => 'array',
         'rent_monthly_brl' => 'decimal:2',
+        'rent_items' => 'array',
     ];
 
     public function user(): BelongsTo
@@ -27,4 +31,3 @@ class DriverSetting extends Model
         return $this->belongsTo(User::class);
     }
 }
-

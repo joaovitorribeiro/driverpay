@@ -21,7 +21,9 @@ class DriverSettingsController extends Controller
                 'fuel_price_brl' => $settings?->fuel_price_brl !== null ? (string) $settings->fuel_price_brl : '0',
                 'consumption_km_per_l' => $settings?->consumption_km_per_l !== null ? (string) $settings->consumption_km_per_l : '0',
                 'maintenance_monthly_brl' => $settings?->maintenance_monthly_brl !== null ? (string) $settings->maintenance_monthly_brl : '',
+                'maintenance_items' => $settings?->maintenance_items ?? [],
                 'rent_monthly_brl' => $settings?->rent_monthly_brl !== null ? (string) $settings->rent_monthly_brl : '',
+                'rent_items' => $settings?->rent_items ?? [],
             ],
         ]);
     }
@@ -36,11 +38,12 @@ class DriverSettingsController extends Controller
                 'fuel_price_brl' => $request->validated('fuel_price_brl'),
                 'consumption_km_per_l' => $request->validated('consumption_km_per_l'),
                 'maintenance_monthly_brl' => $request->validated('maintenance_monthly_brl'),
+                'maintenance_items' => $request->validated('maintenance_items', []),
                 'rent_monthly_brl' => $request->validated('rent_monthly_brl'),
+                'rent_items' => $request->validated('rent_items', []),
             ],
         );
 
         return redirect()->route('settings');
     }
 }
-
