@@ -210,7 +210,8 @@ export default function DriverLayout({ header, children }) {
                     <div className="flex h-full flex-col px-5 py-6">
                         <div>
                             <div className="text-lg font-semibold text-white">
-                                Driver Pay
+                                <span className="text-emerald-400">Driver</span>{' '}
+                                <span className="text-white">Pay</span>
                             </div>
                         </div>
 

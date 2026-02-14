@@ -24,10 +24,6 @@ class DriverReferController extends Controller
         $code = $user?->referral_code;
         $link = $code ? url('/register?ref='.$code) : url('/register');
 
-        $total = User::query()
-            ->where('referred_by_user_id', $user->id)
-            ->count();
-
         $activeSubscriptionExists = Subscription::query()
             ->selectRaw('1')
             ->whereColumn('subscriptions.user_id', 'users.id')
@@ -50,8 +46,9 @@ class DriverReferController extends Controller
                 'is_pro',
             ])
             ->selectSub($activeSubscriptionExists, 'has_active_subscription')
-            ->get()
-            ->map(fn (User $u) => [
+            ->paginate(20)
+            ->appends($request->query())
+            ->through(fn (User $u) => [
                 'id' => $u->id,
                 'name' => $u->name,
                 'email' => $u->email,
@@ -64,10 +61,7 @@ class DriverReferController extends Controller
                 'code' => $code,
                 'link' => $link,
             ],
-            'referrals' => [
-                'count' => (int) $total,
-                'items' => $referrals,
-            ],
+            'referrals' => $referrals,
         ]);
     }
 }

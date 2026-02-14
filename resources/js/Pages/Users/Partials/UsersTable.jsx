@@ -1,3 +1,4 @@
+import Pagination from '@/Components/Pagination';
 import { router } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
@@ -157,6 +158,7 @@ export default function UsersTable({
                                             router.put(
                                                 route('users.role.update', u.id),
                                                 { role: selected[u.id] },
+                                                { preserveScroll: true, preserveState: true },
                                             )
                                         }
                                         className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300"
@@ -168,6 +170,9 @@ export default function UsersTable({
                         ))}
                     </tbody>
                 </table>
+            </div>
+            <div className="px-4 pb-4">
+                <Pagination paginator={users} variant="light" />
             </div>
         </div>
     );

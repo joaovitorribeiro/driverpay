@@ -134,7 +134,8 @@ export default function AdminLayout({ header, children }) {
                             <ApplicationLogo className="h-9 w-9 fill-current text-slate-900" />
                             <div className="leading-tight">
                                 <div className="text-sm font-extrabold tracking-tight">
-                                    Driver Pay
+                                    <span className="text-emerald-600">Driver</span>{' '}
+                                    <span className="text-slate-900">Pay</span>
                                 </div>
                                 <div className="text-xs font-semibold text-slate-500">
                                     {role === 'master'
@@ -264,7 +265,8 @@ export default function AdminLayout({ header, children }) {
                             >
                                 <ApplicationLogo className="h-9 w-9 fill-current text-slate-900" />
                                 <div className="text-sm font-extrabold tracking-tight text-slate-900">
-                                    Driver Pay
+                                    <span className="text-emerald-600">Driver</span>{' '}
+                                    <span className="text-slate-900">Pay</span>
                                 </div>
                             </Link>
                             <button
@@ -374,7 +376,8 @@ export default function AdminLayout({ header, children }) {
                             </button>
                             <div className="min-w-0">
                                 <div className="text-sm font-extrabold tracking-tight text-slate-900">
-                                    Driver Pay
+                                    <span className="text-emerald-600">Driver</span>{' '}
+                                    <span className="text-slate-900">Pay</span>
                                 </div>
                                 <div className="text-xs font-semibold text-slate-500">
                                     {role === 'master'

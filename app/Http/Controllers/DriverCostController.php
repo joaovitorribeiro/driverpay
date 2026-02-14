@@ -11,6 +11,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class DriverCostController extends Controller
 {
@@ -20,6 +22,7 @@ class DriverCostController extends Controller
 
         $user = $request->user();
         $isPro = $user ? $user->isProAccess() : false;
+        $settings = $user?->driverSetting;
 
         $query = DriverCost::query()
             ->with('user:id,name,email')
@@ -27,7 +30,12 @@ class DriverCostController extends Controller
             ->orderByDesc('id');
 
         $period = $request->query('period');
-        $resolvedPeriod = in_array($period, ['7d', '30d', 'all'], true) ? $period : null;
+        $resolvedPeriod = in_array($period, ['7d', 'all', 'month', 'year', 'range'], true) ? $period : null;
+        $monthParam = is_string($request->query('month')) ? $request->query('month') : null;
+        $yearParam = is_string($request->query('year')) ? $request->query('year') : null;
+        $fromParam = is_string($request->query('from')) ? $request->query('from') : null;
+        $toParam = is_string($request->query('to')) ? $request->query('to') : null;
+        $report = null;
 
         if (! $isPro && $resolvedPeriod && $resolvedPeriod !== '7d') {
             $resolvedPeriod = '7d';
@@ -41,10 +49,29 @@ class DriverCostController extends Controller
             }
         }
 
-        if ($resolvedPeriod === '7d' || $resolvedPeriod === '30d') {
-            $days = $resolvedPeriod === '30d' ? 30 : 7;
-            $from = CarbonImmutable::now()->subDays($days - 1)->startOfDay()->toDateString();
+        $month = $this->resolveMonth($monthParam);
+        $year = $this->resolveYear($yearParam);
+        [$fromDate, $toDate] = $this->resolveRange($fromParam, $toParam);
+
+        if ($resolvedPeriod === '7d') {
+            $from = CarbonImmutable::now()->subDays(6)->startOfDay()->toDateString();
             $query->whereDate('date', '>=', $from);
+        } elseif ($resolvedPeriod === 'month') {
+            $from = $month->startOfMonth()->toDateString();
+            $to = $month->endOfMonth()->toDateString();
+            $query->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
+        } elseif ($resolvedPeriod === 'year') {
+            $from = $year->startOfYear()->toDateString();
+            $to = $year->endOfYear()->toDateString();
+            $query->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
+        } elseif ($resolvedPeriod === 'all') {
+            if ($user && $user->hasRole(Roles::DRIVER)) {
+                $query->limit(1000);
+            }
+        } elseif ($resolvedPeriod === 'range') {
+            $from = $fromDate->toDateString();
+            $to = $toDate->toDateString();
+            $query->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
         }
 
         $summaryQuery = (clone $query)->reorder();
@@ -59,6 +86,16 @@ class DriverCostController extends Controller
 
         $bestDate = $bestDay?->date;
         $worstDate = $worstDay?->date;
+
+        if ($isPro && ($resolvedPeriod === 'month' || $resolvedPeriod === 'year')) {
+            $report = $this->buildReport(
+                query: $summaryQuery,
+                period: $resolvedPeriod,
+                month: $month,
+                year: $year,
+                settings: $settings,
+            );
+        }
 
         $costs = $query
             ->paginate(20)
@@ -84,6 +121,10 @@ class DriverCostController extends Controller
             'costs' => $costs,
             'filters' => [
                 'period' => $resolvedPeriod,
+                'month' => $month->format('Y-m'),
+                'year' => $year->format('Y'),
+                'from' => $fromDate->toDateString(),
+                'to' => $toDate->toDateString(),
             ],
             'entitlements' => [
                 'is_pro' => $isPro,
@@ -99,6 +140,148 @@ class DriverCostController extends Controller
                     'total_cents' => (int) $worstDay->total_cents,
                 ] : null,
             ],
+            'report' => $report,
+        ]);
+    }
+
+    public function export(Request $request): StreamedResponse|SymfonyResponse
+    {
+        $this->authorize('viewAny', DriverCost::class);
+
+        $user = $request->user();
+        if (! $user || ! $user->isProAccess()) {
+            abort(403);
+        }
+
+        $format = $request->query('format', 'csv');
+        $resolvedFormat = in_array($format, ['csv', 'pdf'], true) ? $format : 'csv';
+
+        $period = $request->query('period');
+        $resolvedPeriod = in_array($period, ['7d', 'month', 'year', 'range'], true) ? $period : null;
+        if (! $resolvedPeriod) {
+            abort(422);
+        }
+
+        $settings = $user->driverSetting;
+        $month = $this->resolveMonth(is_string($request->query('month')) ? $request->query('month') : null);
+        $year = $this->resolveYear(is_string($request->query('year')) ? $request->query('year') : null);
+        [$fromDate, $toDate] = $this->resolveRange(
+            is_string($request->query('from')) ? $request->query('from') : null,
+            is_string($request->query('to')) ? $request->query('to') : null,
+        );
+
+        $query = DriverCost::query()
+            ->when($user->hasRole(Roles::DRIVER), fn ($q) => $q->where('user_id', $user->id))
+            ->orderBy('date');
+
+        if ($resolvedPeriod === 'month') {
+            $from = $month->startOfMonth()->toDateString();
+            $to = $month->endOfMonth()->toDateString();
+            $query->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
+
+            $report = $this->buildReport(
+                query: $query->reorder(),
+                period: 'month',
+                month: $month,
+                year: $year,
+                settings: $settings,
+            );
+        } elseif ($resolvedPeriod === 'year') {
+            $from = $year->startOfYear()->toDateString();
+            $to = $year->endOfYear()->toDateString();
+            $query->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
+
+            $report = $this->buildReport(
+                query: $query->reorder(),
+                period: 'year',
+                month: $month,
+                year: $year,
+                settings: $settings,
+            );
+        } elseif ($resolvedPeriod === '7d') {
+            $toDate = CarbonImmutable::now()->startOfDay();
+            $fromDate = $toDate->subDays(6)->startOfDay();
+            $query->whereDate('date', '>=', $fromDate->toDateString())->whereDate('date', '<=', $toDate->toDateString());
+
+            $report = $this->buildRangeReport(
+                query: $query->reorder(),
+                from: $fromDate,
+                to: $toDate,
+                settings: $settings,
+                periodLabel: 'Últimos 7 dias',
+            );
+        } else {
+            $query->whereDate('date', '>=', $fromDate->toDateString())->whereDate('date', '<=', $toDate->toDateString());
+
+            $label = $fromDate->format('d/m/Y') . ' a ' . $toDate->format('d/m/Y');
+            $report = $this->buildRangeReport(
+                query: $query->reorder(),
+                from: $fromDate,
+                to: $toDate,
+                settings: $settings,
+                periodLabel: $label,
+            );
+        }
+
+        if ($resolvedFormat === 'pdf') {
+            $filename = $resolvedPeriod === 'month'
+                ? 'driverpay-mensal-' . $month->format('Y-m') . '.pdf'
+                : ($resolvedPeriod === 'year'
+                    ? 'driverpay-anual-' . $year->format('Y') . '.pdf'
+                    : ($resolvedPeriod === '7d'
+                        ? 'driverpay-ultimos-7-dias.pdf'
+                        : 'driverpay-periodo-' . $fromDate->format('Y-m-d') . '-' . $toDate->format('Y-m-d') . '.pdf'));
+
+            return response()
+                ->view('reports.costs', [
+                    'report' => $report,
+                    'filename' => $filename,
+                    'period' => $resolvedPeriod,
+                ], 200)
+                ->header('Content-Type', 'text/html; charset=UTF-8');
+        }
+
+        $filename = $resolvedPeriod === 'month'
+            ? 'driverpay-mensal-' . $month->format('Y-m') . '.csv'
+            : ($resolvedPeriod === 'year'
+                ? 'driverpay-anual-' . $year->format('Y') . '.csv'
+                : ($resolvedPeriod === '7d'
+                    ? 'driverpay-ultimos-7-dias.csv'
+                    : 'driverpay-periodo-' . $fromDate->format('Y-m-d') . '-' . $toDate->format('Y-m-d') . '.csv'));
+
+        return response()->streamDownload(function () use ($report) {
+            $out = fopen('php://output', 'w');
+
+            if (! $out) {
+                return;
+            }
+
+            $type = $report['type'] ?? null;
+            $rows = $report['rows'] ?? [];
+
+            if ($type === 'year') {
+                fputcsv($out, ['Mês', 'Registros', 'Ganhos', 'Km', 'Combustível', 'Despesas']);
+            } else {
+                fputcsv($out, ['Dia', 'Registros', 'Ganhos', 'Km', 'Combustível', 'Despesas']);
+            }
+
+            foreach ($rows as $row) {
+                fputcsv($out, [
+                    $row['label'] ?? '',
+                    $row['records'] ?? 0,
+                    $this->formatBrlFromCents((int) ($row['gains_cents'] ?? 0)),
+                    $row['km'] ?? 0,
+                    $this->formatBrlFromCents((int) ($row['fuel_cents'] ?? 0)),
+                    $this->formatBrlFromCents((int) ($row['expenses_cents'] ?? 0)),
+                ]);
+            }
+
+            fputcsv($out, []);
+            fputcsv($out, ['Total', $report['totals']['records'] ?? 0, '', '', '', $this->formatBrlFromCents((int) ($report['totals']['expenses_cents'] ?? 0))]);
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }
 
@@ -168,5 +351,289 @@ class DriverCostController extends Controller
         }
 
         return "Costs/Driver/{$suffix}";
+    }
+
+    private function resolveMonth(?string $month): CarbonImmutable
+    {
+        $candidate = is_string($month) && preg_match('/^\d{4}-\d{2}$/', $month) ? $month : null;
+        if (! $candidate) {
+            return CarbonImmutable::now()->startOfMonth();
+        }
+
+        try {
+            return CarbonImmutable::createFromFormat('Y-m', $candidate)->startOfMonth();
+        } catch (\Throwable) {
+            return CarbonImmutable::now()->startOfMonth();
+        }
+    }
+
+    private function resolveYear(?string $year): CarbonImmutable
+    {
+        $candidate = is_string($year) && preg_match('/^\d{4}$/', $year) ? (int) $year : null;
+        $current = (int) CarbonImmutable::now()->format('Y');
+
+        if (! $candidate || $candidate < 2000 || $candidate > $current + 1) {
+            $candidate = $current;
+        }
+
+        return CarbonImmutable::create($candidate, 1, 1)->startOfYear();
+    }
+
+    private function resolveRange(?string $from, ?string $to): array
+    {
+        $defaultTo = CarbonImmutable::now()->startOfDay();
+        $defaultFrom = $defaultTo->subDays(29)->startOfDay();
+
+        $fromDate = $this->resolveDate($from) ?? $defaultFrom;
+        $toDate = $this->resolveDate($to) ?? $defaultTo;
+
+        if ($fromDate->greaterThan($toDate)) {
+            [$fromDate, $toDate] = [$toDate, $fromDate];
+        }
+
+        return [$fromDate->startOfDay(), $toDate->startOfDay()];
+    }
+
+    private function resolveDate(?string $date): ?CarbonImmutable
+    {
+        $candidate = is_string($date) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : null;
+        if (! $candidate) {
+            return null;
+        }
+
+        try {
+            return CarbonImmutable::createFromFormat('Y-m-d', $candidate)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function buildRangeReport($query, CarbonImmutable $from, CarbonImmutable $to, $settings, string $periodLabel): array
+    {
+        $days = $from->diffInDays($to, false);
+        if ($days < 0) {
+            [$from, $to] = [$to, $from];
+            $days = $from->diffInDays($to, false);
+        }
+
+        if ($days > 370) {
+            abort(422);
+        }
+
+        $generatedAt = CarbonImmutable::now();
+
+        $maintenanceCents = $this->brlToCents($settings?->maintenance_monthly_brl !== null ? (string) $settings->maintenance_monthly_brl : null);
+        $rentCents = $this->brlToCents($settings?->rent_monthly_brl !== null ? (string) $settings->rent_monthly_brl : null);
+        $fixedMonthlyCents = $maintenanceCents + $rentCents;
+        $fixedDailyCents = (int) round($fixedMonthlyCents / 30);
+        $fixedCents = $fixedDailyCents * ((int) $days + 1);
+
+        $daily = (clone $query)
+            ->selectRaw('date, sum(amount_cents) as total_cents, count(*) as total_count')
+            ->groupBy('date')
+            ->get();
+
+        $map = [];
+        foreach ($daily as $row) {
+            $dateStr = is_string($row->date) ? $row->date : ($row->date?->format('Y-m-d'));
+            if (! $dateStr) {
+                continue;
+            }
+            $map[$dateStr] = [
+                'cents' => (int) ($row->total_cents ?? 0),
+                'count' => (int) ($row->total_count ?? 0),
+            ];
+        }
+
+        $rows = [];
+        $recordsTotal = 0;
+        $expensesTotal = 0;
+
+        for ($i = 0; $i <= $days; $i++) {
+            $date = $from->addDays($i);
+            $dateKey = $date->format('Y-m-d');
+            $agg = $map[$dateKey] ?? ['cents' => 0, 'count' => 0];
+
+            $recordsTotal += $agg['count'];
+            $expensesTotal += $agg['cents'];
+
+            $rows[] = [
+                'key' => $dateKey,
+                'label' => $date->format('d/m'),
+                'records' => $agg['count'],
+                'gains_cents' => 0,
+                'km' => 0,
+                'fuel_cents' => 0,
+                'expenses_cents' => $agg['cents'],
+            ];
+        }
+
+        return [
+            'type' => 'range',
+            'title' => 'Relatório Pro',
+            'period_label' => $periodLabel,
+            'generated_at' => $generatedAt->toISOString(),
+            'rows' => $rows,
+            'totals' => [
+                'records' => $recordsTotal,
+                'gains_cents' => 0,
+                'km' => 0,
+                'fuel_cents' => 0,
+                'expenses_cents' => $expensesTotal,
+                'fixed_cents' => $fixedCents,
+                'net_cents' => 0,
+            ],
+        ];
+    }
+
+    private function brlToCents(?string $value): int
+    {
+        if ($value === null) {
+            return 0;
+        }
+
+        $normalized = preg_replace('/[^\d,.\-]/', '', $value);
+        if (! is_string($normalized) || $normalized === '') {
+            return 0;
+        }
+
+        $normalized = str_replace('.', '', $normalized);
+        $normalized = str_replace(',', '.', $normalized);
+
+        $num = (float) $normalized;
+        if (! is_finite($num)) {
+            return 0;
+        }
+
+        return (int) round($num * 100);
+    }
+
+    private function formatBrlFromCents(int $cents): string
+    {
+        $value = $cents / 100;
+        return number_format($value, 2, ',', '.');
+    }
+
+    private function buildReport($query, string $period, CarbonImmutable $month, CarbonImmutable $year, $settings): array
+    {
+        $generatedAt = CarbonImmutable::now();
+
+        $maintenanceCents = $this->brlToCents($settings?->maintenance_monthly_brl !== null ? (string) $settings->maintenance_monthly_brl : null);
+        $rentCents = $this->brlToCents($settings?->rent_monthly_brl !== null ? (string) $settings->rent_monthly_brl : null);
+        $fixedMonthlyCents = $maintenanceCents + $rentCents;
+        $fixedCents = $period === 'year' ? $fixedMonthlyCents * 12 : $fixedMonthlyCents;
+
+        $daily = (clone $query)
+            ->selectRaw('date, sum(amount_cents) as total_cents, count(*) as total_count')
+            ->groupBy('date')
+            ->get();
+
+        $map = [];
+        foreach ($daily as $row) {
+            $dateStr = is_string($row->date) ? $row->date : ($row->date?->format('Y-m-d'));
+            if (! $dateStr) {
+                continue;
+            }
+            $map[$dateStr] = [
+                'cents' => (int) ($row->total_cents ?? 0),
+                'count' => (int) ($row->total_count ?? 0),
+            ];
+        }
+
+        if ($period === 'month') {
+            $daysInMonth = (int) $month->daysInMonth;
+            $rows = [];
+            $recordsTotal = 0;
+            $expensesTotal = 0;
+
+            for ($i = 0; $i < $daysInMonth; $i++) {
+                $date = $month->addDays($i);
+                $dateKey = $date->format('Y-m-d');
+                $agg = $map[$dateKey] ?? ['cents' => 0, 'count' => 0];
+
+                $recordsTotal += $agg['count'];
+                $expensesTotal += $agg['cents'];
+
+                $rows[] = [
+                    'key' => $dateKey,
+                    'label' => $date->format('d'),
+                    'records' => $agg['count'],
+                    'gains_cents' => 0,
+                    'km' => 0,
+                    'fuel_cents' => 0,
+                    'expenses_cents' => $agg['cents'],
+                ];
+            }
+
+            $monthLabel = $month->locale('pt_BR')->translatedFormat('F Y');
+
+            return [
+                'type' => 'month',
+                'title' => 'Relatório Pro',
+                'period_label' => $monthLabel,
+                'generated_at' => $generatedAt->toISOString(),
+                'rows' => $rows,
+                'totals' => [
+                    'records' => $recordsTotal,
+                    'gains_cents' => 0,
+                    'km' => 0,
+                    'fuel_cents' => 0,
+                    'expenses_cents' => $expensesTotal,
+                    'fixed_cents' => $fixedCents,
+                    'net_cents' => 0,
+                ],
+            ];
+        }
+
+        $rows = [];
+        $recordsTotal = 0;
+        $expensesTotal = 0;
+
+        for ($m = 1; $m <= 12; $m++) {
+            $monthKey = sprintf('%04d-%02d', (int) $year->format('Y'), $m);
+            $bucketCount = 0;
+            $bucketCents = 0;
+
+            foreach ($map as $dateKey => $agg) {
+                if (str_starts_with($dateKey, $monthKey)) {
+                    $bucketCount += (int) $agg['count'];
+                    $bucketCents += (int) $agg['cents'];
+                }
+            }
+
+            $recordsTotal += $bucketCount;
+            $expensesTotal += $bucketCents;
+
+            $label = CarbonImmutable::create((int) $year->format('Y'), $m, 1)
+                ->locale('pt_BR')
+                ->translatedFormat('M');
+
+            $rows[] = [
+                'key' => $monthKey,
+                'label' => strtoupper($label),
+                'records' => $bucketCount,
+                'gains_cents' => 0,
+                'km' => 0,
+                'fuel_cents' => 0,
+                'expenses_cents' => $bucketCents,
+            ];
+        }
+
+        return [
+            'type' => 'year',
+            'title' => 'Relatório Pro',
+            'period_label' => $year->format('Y'),
+            'generated_at' => $generatedAt->toISOString(),
+            'rows' => $rows,
+            'totals' => [
+                'records' => $recordsTotal,
+                'gains_cents' => 0,
+                'km' => 0,
+                'fuel_cents' => 0,
+                'expenses_cents' => $expensesTotal,
+                'fixed_cents' => $fixedCents,
+                'net_cents' => 0,
+            ],
+        ];
     }
 }

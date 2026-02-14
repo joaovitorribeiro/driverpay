@@ -30,8 +30,13 @@ export default function SplashScreen({ onFinish }) {
                     alt="Driver Pay Icon" 
                     className="w-32 h-32 mb-6 drop-shadow-lg"
                 />
-                <h1 className="text-4xl font-bold text-white tracking-wider drop-shadow-md">
-                    Driver Pay
+                <h1 className="text-4xl font-bold tracking-wider drop-shadow-md">
+                    <span className="text-emerald-300 drop-shadow-[0_0_18px_rgba(16,185,129,0.45)]">
+                        Driver
+                    </span>{' '}
+                    <span className="text-white drop-shadow-[0_0_18px_rgba(255,255,255,0.12)]">
+                        Pay
+                    </span>
                 </h1>
                 <p className="mt-2 text-white text-lg font-light drop-shadow-sm">
                     Controle de Custos para Motorista

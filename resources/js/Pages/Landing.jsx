@@ -90,6 +90,12 @@ export default function Landing({ canLogin, canRegister }) {
     const user = usePage().props.auth?.user;
     const role = user?.role;
     const [mobileOpen, setMobileOpen] = useState(false);
+    const Brand = () => (
+        <>
+            <span className="text-emerald-400">Driver</span>{' '}
+            <span className="text-white">Pay</span>
+        </>
+    );
 
     const primaryCta = useMemo(() => {
         if (user) {
@@ -127,7 +133,7 @@ export default function Landing({ canLogin, canRegister }) {
                                 <ApplicationLogo className="h-9 w-9 fill-current text-white" />
                                 <div className="leading-tight">
                                     <div className="text-sm font-extrabold tracking-tight">
-                                        Driver Pay
+                                        <Brand />
                                     </div>
                                     <div className="text-xs font-semibold text-white/55">
                                         Controle real do seu custo por corrida
@@ -234,7 +240,7 @@ export default function Landing({ canLogin, canRegister }) {
                                     >
                                         <ApplicationLogo className="h-9 w-9 fill-current text-white" />
                                         <div className="text-sm font-extrabold tracking-tight">
-                                            Driver Pay
+                                            <Brand />
                                         </div>
                                     </Link>
                                     <button
@@ -385,7 +391,7 @@ export default function Landing({ canLogin, canRegister }) {
                                                 </div>
                                             </div>
                                             <div className="inline-flex items-center rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-200">
-                                                Driver Pay
+                                                <Brand />
                                             </div>
                                         </div>
 
@@ -652,7 +658,8 @@ export default function Landing({ canLogin, canRegister }) {
                                 </h2>
                                 <p className="mt-4 text-base leading-relaxed text-white/70">
                                     Um app leve, direto ao ponto, com a estética
-                                    escura do Driver Pay e foco em operação.
+                                    escura do <span className="text-emerald-300">Driver</span>{' '}
+                                    Pay e foco em operação.
                                 </p>
                             </div>
 
@@ -835,7 +842,7 @@ export default function Landing({ canLogin, canRegister }) {
                                 <div className="inline-flex items-center gap-3">
                                     <ApplicationLogo className="h-8 w-8 fill-current text-white" />
                                     <div className="text-sm font-extrabold tracking-tight text-white">
-                                        Driver Pay
+                                        <Brand />
                                     </div>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-white/60">

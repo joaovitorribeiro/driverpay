@@ -1,4 +1,5 @@
 import DriverLayout from '@/Layouts/DriverLayout';
+import Pagination from '@/Components/Pagination';
 import { Head, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
@@ -21,8 +22,8 @@ export default function Refer({ referral, referrals }) {
 
     const code = referral?.code ?? null;
     const link = referral?.link ?? null;
-    const count = referrals?.count ?? 0;
-    const items = referrals?.items ?? [];
+    const count = referrals?.total ?? 0;
+    const items = referrals?.data ?? [];
 
     const canShare = useMemo(() => {
         return typeof navigator !== 'undefined' && !!navigator?.share;
@@ -204,6 +205,8 @@ export default function Refer({ referral, referrals }) {
                                 </div>
                             )}
                         </div>
+
+                        <Pagination paginator={referrals} variant="dark" />
                     </div>
                 </div>
             </div>

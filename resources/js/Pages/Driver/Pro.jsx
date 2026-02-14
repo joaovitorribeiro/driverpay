@@ -71,7 +71,19 @@ export default function Pro({ pricing, google_billing, entitlements }) {
                 <div className="mx-auto w-full max-w-md">
                     <div className="text-center">
                         <div className="text-sm font-semibold tracking-wider text-emerald-300/90">
-                            {isPro ? 'Driver Pay Pro' : 'Conta Gratuita'}
+                            {isPro ? (
+                                <>
+                                    <span className="text-emerald-400">
+                                        Driver
+                                    </span>{' '}
+                                    <span className="text-emerald-200">
+                                        Pay
+                                    </span>{' '}
+                                    Pro
+                                </>
+                            ) : (
+                                'Conta Gratuita'
+                            )}
                         </div>
                         <h1 className="mt-3 text-4xl font-extrabold leading-[1.05] tracking-tight text-white">
                             Relatórios completos para você ganhar mais.

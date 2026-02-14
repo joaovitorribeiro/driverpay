@@ -61,6 +61,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    Route::get('/costs/export', [DriverCostController::class, 'export'])
+        ->name('costs.export');
     Route::resource('costs', DriverCostController::class)->except(['show']);
 
     Route::get('/users', [UserManagementController::class, 'index'])

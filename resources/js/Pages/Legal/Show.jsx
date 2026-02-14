@@ -12,7 +12,8 @@ export default function Show({ document }) {
                 <div className="rounded-lg border border-gray-200 bg-white px-6 py-8 shadow sm:px-10 sm:py-12">
                     <div className="text-center">
                         <div className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-                            Driver Pay
+                            <span className="text-emerald-600">Driver</span>{' '}
+                            <span className="text-gray-500">Pay</span>
                         </div>
                         <h1 className="mt-3 font-serif text-2xl font-semibold tracking-tight text-gray-900">
                             {document.title}
