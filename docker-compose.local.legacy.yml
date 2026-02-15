@@ -1,0 +1,25 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile.legacy
+    working_dir: /var/www/html
+    environment:
+      DOCKER_MODE: legacy
+      CONTAINER_ROLE: app
+    volumes:
+      - ./:/var/www/html
+      - vendor-data:/var/www/html/vendor
+      - node-modules-data:/var/www/html/node_modules
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "8080:8000"
+      - "5173:5173"
+      - "5432:5432"
+      - "6543:6543"
+      - "6380:6379"
+
+volumes:
+  vendor-data:
+  node-modules-data:
+  postgres-data:

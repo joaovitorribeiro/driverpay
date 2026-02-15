@@ -1,4 +1,4 @@
-﻿# driverpay
+# driverpay
 
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
@@ -11,12 +11,24 @@
 
 ## Rodando com Docker
 
-- Dev (hot reload): `docker compose up -d --build`
+- Local (recomendado): `docker compose -f docker-compose.local.yml up -d --build`
 - App: http://localhost:8080
 - Vite (HMR): http://localhost:5173
-- Banco: PgBouncer `localhost:6543` (Postgres interno `localhost:5432`)
+- Banco: Postgres `localhost:5432`
 - Redis: `localhost:6380`
-- Testes (dentro do container): `docker compose run --rm app php artisan test --no-ansi`
+
+- Local (legacy/monolítico): `docker compose -f docker-compose.local.legacy.yml up -d --build`
+
+## Produção (Coolify)
+
+- Deploy via Dockerfile: [Dockerfile](file:///d:/DriverPay/Dockerfile)
+- Porta da aplicação: `80` (mapeie no Coolify para o domínio)
+- Variáveis mínimas: `APP_KEY`, `APP_URL`, `DB_*`, `REDIS_*`
+- Processos:
+  - Web: padrão (`CONTAINER_ROLE=app`)
+  - Queue: `CONTAINER_ROLE=queue`
+  - Scheduler: `CONTAINER_ROLE=scheduler`
+- O arquivo [.env.production](file:///d:/DriverPay/.env.production) é referência de chaves (sem segredos) para você copiar para o Coolify.
 
 ## About Laravel
 

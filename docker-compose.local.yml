@@ -1,0 +1,62 @@
+services:
+  web:
+    image: nginx:1.27-alpine
+    depends_on:
+      - app
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./:/var/www/html:ro
+
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile.dev
+    environment:
+      DOCKER_MODE: dev
+      CONTAINER_ROLE: app
+      APP_ENV: local
+    working_dir: /var/www/html
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./:/var/www/html
+      - vendor-data:/var/www/html/vendor
+      - node-modules-data:/var/www/html/node_modules
+
+  vite:
+    image: node:22-alpine
+    working_dir: /var/www/html
+    environment:
+      VITE_PORT: 5173
+      VITE_HMR_HOST: localhost
+      VITE_USE_POLLING: "1"
+    command: sh -lc "test -d node_modules || npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./:/var/www/html
+      - node-modules-data:/var/www/html/node_modules
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: driverpay
+      POSTGRES_USER: driverpay
+      POSTGRES_PASSWORD: driverpay
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+
+volumes:
+  vendor-data:
+  node-modules-data:
+  postgres-data:
