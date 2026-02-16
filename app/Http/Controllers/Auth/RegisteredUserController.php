@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Permissions;
 use App\Support\Referral;
 use App\Support\Roles;
 use Illuminate\Auth\Events\Registered;
@@ -15,6 +16,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class RegisteredUserController extends Controller
@@ -71,8 +73,17 @@ class RegisteredUserController extends Controller
             ])->save();
         }
 
-        Role::findOrCreate(Roles::DRIVER);
-        $user->assignRole(Roles::DRIVER);
+        $role = Role::findOrCreate(Roles::DRIVER);
+
+        if ($role->permissions()->count() === 0) {
+            $permissions = Permissions::getPermissions(Roles::DRIVER);
+            foreach ($permissions as $permission) {
+                Permission::findOrCreate($permission);
+            }
+            $role->syncPermissions($permissions);
+        }
+
+        $user->assignRole($role);
 
         event(new Registered($user));
 

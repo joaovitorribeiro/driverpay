@@ -18,16 +18,11 @@ class RolePermissionSeeder extends Seeder
 
         $guard = config('auth.defaults.guard');
 
-        $permissions = [
-            Permissions::LOGS_VIEW,
-            Permissions::USERS_MANAGE,
-            Permissions::RECORDS_DELETE,
-            Permissions::COSTS_VIEW_ANY,
-            Permissions::COSTS_VIEW_OWN,
-            Permissions::COSTS_CREATE,
-            Permissions::COSTS_UPDATE_ANY,
-            Permissions::COSTS_UPDATE_OWN,
-        ];
+        $permissions = array_unique(array_merge(
+            Permissions::getPermissions(Roles::MASTER),
+            Permissions::getPermissions(Roles::ADMIN),
+            Permissions::getPermissions(Roles::DRIVER),
+        ));
 
         foreach ($permissions as $permission) {
             Permission::findOrCreate($permission, $guard);
@@ -37,22 +32,9 @@ class RolePermissionSeeder extends Seeder
         $admin = Role::findOrCreate(Roles::ADMIN, $guard);
         $driver = Role::findOrCreate(Roles::DRIVER, $guard);
 
-        $master->syncPermissions($permissions);
-
-        $admin->syncPermissions([
-            Permissions::USERS_MANAGE,
-            Permissions::COSTS_VIEW_ANY,
-            Permissions::COSTS_VIEW_OWN,
-            Permissions::COSTS_CREATE,
-            Permissions::COSTS_UPDATE_ANY,
-            Permissions::COSTS_UPDATE_OWN,
-        ]);
-
-        $driver->syncPermissions([
-            Permissions::COSTS_VIEW_OWN,
-            Permissions::COSTS_CREATE,
-            Permissions::COSTS_UPDATE_OWN,
-        ]);
+        $master->syncPermissions(Permissions::getPermissions(Roles::MASTER));
+        $admin->syncPermissions(Permissions::getPermissions(Roles::ADMIN));
+        $driver->syncPermissions(Permissions::getPermissions(Roles::DRIVER));
 
         $assignFirstUserAsMaster = filter_var(
             env('SEED_ASSIGN_FIRST_USER_MASTER', false),
