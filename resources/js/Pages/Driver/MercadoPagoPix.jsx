@@ -2,9 +2,18 @@ import DriverLayout from '@/Layouts/DriverLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 
-export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, amount, expires_at }) {
+function formatRemaining(seconds) {
+    if (seconds === null || seconds === undefined) return null;
+    const s = Math.max(0, Number(seconds) || 0);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+}
+
+export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, amount, expires_at, expires_in_seconds }) {
     const [copied, setCopied] = useState(false);
     const [currentStatus, setCurrentStatus] = useState(status);
+    const [remaining, setRemaining] = useState(expires_in_seconds ?? null);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(qr_code);
@@ -12,7 +21,6 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
         setTimeout(() => setCopied(false), 2000);
     };
 
-    // Polling para verificar status
     useEffect(() => {
         if (currentStatus === 'approved') return;
 
@@ -29,6 +37,23 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
     }, [currentStatus]);
 
     const isApproved = currentStatus === 'approved';
+    const isExpired = remaining !== null && Number(remaining) <= 0 && !isApproved;
+
+    useEffect(() => {
+        if (isApproved) return;
+        if (remaining === null) return;
+        if (Number(remaining) <= 0) return;
+
+        const t = setInterval(() => {
+            setRemaining((prev) => {
+                if (prev === null || prev === undefined) return prev;
+                const next = Number(prev) - 1;
+                return next < 0 ? 0 : next;
+            });
+        }, 1000);
+
+        return () => clearInterval(t);
+    }, [remaining, isApproved]);
 
     return (
         <DriverLayout>
@@ -62,6 +87,12 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
                                 </svg>
                                 <span className="text-sm font-semibold tracking-wide">Aguardando pagamento...</span>
                             </div>
+
+                            {expires_at ? (
+                                <div className="mb-6 rounded-[18px] border border-white/10 bg-black/20 px-4 py-3 text-xs text-white/65">
+                                    Expira em <span className="font-extrabold text-white">{formatRemaining(remaining)}</span>
+                                </div>
+                            ) : null}
 
                             <div className="text-sm font-bold tracking-wide text-white/40">TOTAL A PAGAR</div>
                             <div className="mt-1 text-4xl font-extrabold tracking-tight text-white">
@@ -116,10 +147,23 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
                                 )}
                             </div>
 
+                            <Link
+                                href={route('pro')}
+                                className="mt-6 inline-flex h-11 w-full items-center justify-center rounded-full bg-white/10 text-sm font-extrabold tracking-wide text-white hover:bg-white/15"
+                            >
+                                Voltar para tela inicial
+                            </Link>
+
                             <div className="mt-8 text-xs leading-relaxed text-white/40">
                                 Após o pagamento, aguarde alguns segundos nesta tela.<br/>
                                 A confirmação é automática.
                             </div>
+
+                            {isExpired ? (
+                                <div className="mt-4 rounded-[18px] border border-rose-400/20 bg-rose-500/10 p-4 text-sm text-rose-200">
+                                    QR Code expirado. Volte e gere um novo.
+                                </div>
+                            ) : null}
                         </>
                     )}
                 </div>

@@ -8,6 +8,7 @@ use App\Http\Controllers\DriverReferController;
 use App\Http\Controllers\DriverSettingsController;
 use App\Http\Controllers\LegalDocumentController;
 use App\Http\Controllers\LogViewerController;
+use App\Http\Controllers\BillingHistoryController;
 use App\Http\Controllers\MercadoPagoBillingController;
 use App\Http\Controllers\ProController;
 use App\Http\Controllers\ProfileController;
@@ -55,6 +56,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/billing/mercadopago/pix/{id}', [MercadoPagoBillingController::class, 'showPix'])->name('billing.mercadopago.pix');
     Route::post('/billing/mercadopago/cancel', [MercadoPagoBillingController::class, 'cancel'])->name('billing.mercadopago.cancel');
     Route::get('/billing/mercadopago/return', [MercadoPagoBillingController::class, 'back'])->name('billing.mercadopago.return');
+    Route::get('/billing/history', [BillingHistoryController::class, 'show'])->name('billing.history');
 
     Route::get('/refer', [DriverReferController::class, 'show'])->name('refer');
 

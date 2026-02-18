@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PixPayment;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -15,13 +16,50 @@ class ProController extends Controller
         $isPro = $user ? $user->isProAccess() : false;
         $mpEnabled = is_string(config('services.mercadopago.access_token')) && trim((string) config('services.mercadopago.access_token')) !== '';
 
+        $monthlyAmount = (float) config('mercadopago.plans.monthly.transaction_amount', 9.90);
+        $annualAmount = (float) config('mercadopago.plans.annual.transaction_amount', 79.90);
+
+        $monthlyBrl = number_format($monthlyAmount, 2, ',', '.');
+        $annualBrl = number_format($annualAmount, 2, ',', '.');
+
+        $purchaseWidget = [
+            'pending_pix_count' => 0,
+            'last_pending_pix' => null,
+            'history_url' => route('billing.history', ['tab' => 'pix', 'status' => 'all']),
+        ];
+
+        if ($user) {
+            $pendingPix = PixPayment::query()
+                ->where('provider', 'mercadopago')
+                ->where('user_id', $user->id)
+                ->where('status', 'pending')
+                ->whereNull('paid_at')
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '>', now())
+                ->orderByDesc('created_at');
+
+            $purchaseWidget['pending_pix_count'] = $pendingPix->count();
+
+            $lastPending = $pendingPix->first();
+            if ($lastPending) {
+                $purchaseWidget['last_pending_pix'] = [
+                    'provider_id' => $lastPending->payment_id,
+                    'created_at' => $lastPending->created_at?->toISOString(),
+                    'expires_at' => $lastPending->expires_at?->toISOString(),
+                    'resume_url' => route('billing.mercadopago.pix', ['id' => $lastPending->payment_id]),
+                ];
+            }
+        }
+
         return Inertia::render('Driver/Pro', [
             'entitlements' => [
                 'is_pro' => $isPro,
             ],
             'pricing' => [
-                'monthly_brl' => '9,90',
-                'annual_brl' => '79,90',
+                'monthly_brl' => $monthlyBrl,
+                'annual_brl' => $annualBrl,
+                'monthly_amount' => $monthlyAmount,
+                'annual_amount' => $annualAmount,
             ],
             'google_billing' => [
                 'manage_url' => $this->googleManageUrl(),
@@ -33,6 +71,7 @@ class ProController extends Controller
                 'enabled' => $mpEnabled,
                 'portal_url' => route('billing.mercadopago.portal'),
             ],
+            'purchase_widget' => $purchaseWidget,
         ]);
     }
 

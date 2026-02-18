@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Webhooks;
 
 use App\Models\BillingNotification;
+use App\Models\PixPayment;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\MercadoPagoService;
@@ -78,13 +79,10 @@ class MercadoPagoWebhookController
                     'subscription_id' => $subscription->id,
                 ])->save();
             } elseif ($payment) {
-                $user = $this->resolveUserFromPayment($payment);
+                $user = $this->processSinglePayment($payment);
                 if (! $user) {
                     throw new RuntimeException('User not resolved for payment.');
                 }
-
-                // Handle single payment (PIX)
-                $this->processSinglePayment($user, $payment);
 
                 $notification->forceFill([
                     'processed_at' => now(),
@@ -168,14 +166,12 @@ class MercadoPagoWebhookController
             }
 
             $payment = $mp->getPayment($paymentId);
-            
-            // Check if it's a subscription payment
+
             $preapprovalId = is_string($payment['preapproval_id'] ?? null) ? $payment['preapproval_id'] : null;
             if ($preapprovalId) {
                 return [$mp->getPreapproval($preapprovalId), $payment];
             }
 
-            // It's a regular payment (PIX, etc)
             return [null, $payment];
         }
 
@@ -188,6 +184,45 @@ class MercadoPagoWebhookController
 
     private function resolveUserFromPayment(array $payment): ?User
     {
+        $metadata = $payment['metadata'] ?? null;
+        if (is_array($metadata)) {
+            $userId = $metadata['user_id'] ?? null;
+            if (is_string($userId) || is_int($userId)) {
+                $found = User::query()->where('id', (string) $userId)->first();
+                if ($found) {
+                    return $found;
+                }
+            }
+
+            $publicId = $metadata['user_public_id'] ?? null;
+            if (is_string($publicId) && trim($publicId) !== '') {
+                $found = User::query()->where('public_id', $publicId)->first();
+                if ($found) {
+                    return $found;
+                }
+            }
+        }
+
+        $external = $payment['external_reference'] ?? null;
+        if (is_string($external) && trim($external) !== '') {
+            $parts = explode(';', $external);
+            foreach ($parts as $part) {
+                $trim = trim($part);
+                if (str_starts_with($trim, 'user:')) {
+                    $id = trim(substr($trim, 5));
+                    if ($id !== '') {
+                        $found = User::query()
+                            ->where('public_id', $id)
+                            ->orWhere('id', $id)
+                            ->first();
+                        if ($found) {
+                            return $found;
+                        }
+                    }
+                }
+            }
+        }
+
         $email = $payment['payer']['email'] ?? null;
         if (is_string($email) && trim($email) !== '') {
             return User::query()->where('email', $email)->first();
@@ -196,20 +231,66 @@ class MercadoPagoWebhookController
         return null;
     }
 
-    private function processSinglePayment(User $user, array $payment): void
+    private function processSinglePayment(array $payment): ?User
     {
+        $paymentId = $payment['id'] ?? null;
+        if (! is_string($paymentId) && ! is_int($paymentId)) {
+            return null;
+        }
+
+        $paymentId = (string) $paymentId;
+
+        $pixPayment = PixPayment::query()
+            ->where('provider', 'mercadopago')
+            ->where('payment_id', $paymentId)
+            ->first();
+
+        $user = $pixPayment?->user ?? $this->resolveUserFromPayment($payment);
+        if (! $user) {
+            return null;
+        }
+
         $status = $payment['status'] ?? null;
         $statusDetail = $payment['status_detail'] ?? null;
 
-        if ($status === 'approved' && $statusDetail === 'accredited') {
-            // Grant 30 days of access
+        $approved = $status === 'approved' && $statusDetail === 'accredited';
+        $expiresAt = $payment['date_of_expiration'] ?? null;
+
+        if (! $pixPayment) {
+            $pixPayment = PixPayment::create([
+                'provider' => 'mercadopago',
+                'payment_id' => $paymentId,
+                'user_id' => $user->id,
+                'plan' => $this->planFromExternalReference($payment['external_reference'] ?? null),
+                'status' => is_string($status) ? $status : 'pending',
+                'amount_brl' => (float) ($payment['transaction_amount'] ?? 0),
+                'cpf' => null,
+                'raw' => $payment,
+                'expires_at' => is_string($expiresAt) ? Carbon::parse($expiresAt) : null,
+                'paid_at' => null,
+            ]);
+        } else {
+            $pixPayment->forceFill([
+                'status' => is_string($status) ? $status : $pixPayment->status,
+                'raw' => $payment,
+                'expires_at' => is_string($expiresAt) ? Carbon::parse($expiresAt) : $pixPayment->expires_at,
+            ])->save();
+        }
+
+        if ($approved && $pixPayment->paid_at === null) {
+            $pixPayment->forceFill([
+                'paid_at' => now(),
+            ])->save();
+
             $currentBonus = $user->pro_bonus_until;
             $start = ($currentBonus && $currentBonus->isFuture()) ? $currentBonus : now();
-            
+
             $user->forceFill([
                 'pro_bonus_until' => $start->addDays(30),
             ])->save();
         }
+
+        return $user;
     }
 
     private function resolveUser(array $preapproval): ?User

@@ -1,7 +1,44 @@
 import DriverLayout from '@/Layouts/DriverLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import Modal from '@/Components/Modal';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+function onlyDigits(value) {
+    return String(value ?? '').replace(/\D+/g, '');
+}
+
+function formatCpf(value) {
+    const digits = onlyDigits(value).slice(0, 11);
+    const p1 = digits.slice(0, 3);
+    const p2 = digits.slice(3, 6);
+    const p3 = digits.slice(6, 9);
+    const p4 = digits.slice(9, 11);
+
+    if (digits.length <= 3) return p1;
+    if (digits.length <= 6) return `${p1}.${p2}`;
+    if (digits.length <= 9) return `${p1}.${p2}.${p3}`;
+    return `${p1}.${p2}.${p3}-${p4}`;
+}
+
+function isValidCpf(value) {
+    const cpf = onlyDigits(value);
+    if (cpf.length !== 11) return false;
+    if (/^(\d)\1{10}$/.test(cpf)) return false;
+
+    const calc = (base, factor) => {
+        let sum = 0;
+        for (let i = 0; i < base.length; i++) {
+            sum += Number(base[i]) * (factor - i);
+        }
+        const mod = (sum * 10) % 11;
+        return mod === 10 ? 0 : mod;
+    };
+
+    const d1 = calc(cpf.slice(0, 9), 10);
+    const d2 = calc(cpf.slice(0, 10), 11);
+
+    return d1 === Number(cpf[9]) && d2 === Number(cpf[10]);
+}
 
 function PriceCard({ title, price, cadence, highlight, onSelect, badge }) {
     return (
@@ -63,6 +100,20 @@ function PriceCard({ title, price, cadence, highlight, onSelect, badge }) {
 }
 
 function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod }) {
+    const [selectedMethod, setSelectedMethod] = useState(null);
+    const [cpf, setCpf] = useState('');
+    const [saveCpf, setSaveCpf] = useState(false);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        setSelectedMethod(null);
+        setCpf('');
+        setSaveCpf(false);
+    }, [isOpen, plan]);
+
+    const cpfDigits = onlyDigits(cpf);
+    const cpfReady = cpfDigits.length === 11 && isValidCpf(cpfDigits);
+
     return (
         <Modal show={isOpen} onClose={onClose}>
             <div className="bg-[#0b1424] p-6 text-white">
@@ -107,7 +158,7 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod }) {
                     </button>
 
                     <button
-                        onClick={() => onSelectMethod('pix')}
+                        onClick={() => setSelectedMethod('pix')}
                         className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 transition-all hover:border-emerald-400/30 hover:bg-emerald-500/10"
                     >
                         <div className="flex items-center gap-4">
@@ -129,13 +180,68 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod }) {
                             ➝
                         </div>
                     </button>
+
+                    {selectedMethod === 'pix' ? (
+                        <div className="mt-2 rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="text-sm font-extrabold text-white">
+                                CPF de quem vai pagar (pode ser de outra pessoa)
+                            </div>
+                            <div className="mt-1 text-xs leading-relaxed text-white/55">
+                                Use o CPF de quem vai pagar o PIX. Esse dado é usado apenas para processar o pagamento no Mercado Pago.
+                            </div>
+
+                            <div className="mt-4">
+                                <input
+                                    value={cpf}
+                                    onChange={(e) => setCpf(formatCpf(e.target.value))}
+                                    inputMode="numeric"
+                                    placeholder="000.000.000-00"
+                                    className="h-12 w-full rounded-xl border border-white/10 bg-black/20 px-4 text-sm font-semibold tracking-wide text-white/85 placeholder:text-white/25 focus:border-emerald-500/50 focus:ring-0"
+                                />
+                                {cpfDigits.length > 0 && !cpfReady ? (
+                                    <div className="mt-2 text-xs font-semibold text-rose-300/85">
+                                        CPF inválido.
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            <label className="mt-4 flex items-center gap-3 text-sm text-white/70">
+                                <input
+                                    type="checkbox"
+                                    checked={saveCpf}
+                                    onChange={(e) => setSaveCpf(e.target.checked)}
+                                    className="h-4 w-4 rounded border-white/20 bg-white/5 text-emerald-500 focus:ring-emerald-500/40"
+                                />
+                                Guardar CPF criptografado para este pagamento
+                            </label>
+
+                            <button
+                                type="button"
+                                disabled={!cpfReady}
+                                onClick={() =>
+                                    onSelectMethod('pix', {
+                                        cpf: cpfDigits,
+                                        save_cpf: saveCpf,
+                                    })
+                                }
+                                className={
+                                    (cpfReady
+                                        ? 'bg-emerald-500 text-emerald-950 hover:bg-emerald-400'
+                                        : 'bg-white/10 text-white/35') +
+                                    ' mt-5 inline-flex h-11 w-full items-center justify-center rounded-full text-sm font-extrabold tracking-wide'
+                                }
+                            >
+                                Gerar QR Code PIX
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </Modal>
     );
 }
 
-export default function Pro({ pricing, google_billing, mercadopago_billing, entitlements }) {
+export default function Pro({ pricing, google_billing, mercadopago_billing, entitlements, purchase_widget }) {
     const isPro = !!entitlements?.is_pro;
     const mpEnabled = !!mercadopago_billing?.enabled;
 
@@ -147,11 +253,12 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
         setIsModalOpen(true);
     };
 
-    const handleProceedPayment = (method) => {
+    const handleProceedPayment = (method, extra = {}) => {
         setIsModalOpen(false);
         router.post(route('billing.mercadopago.start'), {
             plan: selectedPlan,
             method: method,
+            ...extra,
         });
     };
 
@@ -191,6 +298,38 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
                             No Free você vê apenas os últimos 7 dias. No Pro
                             você desbloqueia relatórios Mensal/Anual e exportação.
                         </p>
+                    </div>
+
+                    <div className="mt-8 rounded-[26px] border border-white/10 bg-[#0b1424]/55 p-6 text-white/80 shadow-2xl shadow-black/35">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="text-base font-extrabold text-white">
+                                Histórico de compras
+                            </div>
+                            <div className="rounded-full border border-amber-400/25 bg-amber-500/15 px-3 py-1 text-xs font-extrabold text-amber-200">
+                                {purchase_widget?.pending_pix_count ?? 0} pendente{(purchase_widget?.pending_pix_count ?? 0) === 1 ? '' : 's'}
+                            </div>
+                        </div>
+                        <div className="mt-2 text-sm leading-relaxed text-white/65">
+                            Acompanhe pagamentos pendentes, em andamento e concluídos.
+                        </div>
+
+                        <div className="mt-5 grid gap-3">
+                            {purchase_widget?.last_pending_pix?.resume_url ? (
+                                <Link
+                                    href={purchase_widget.last_pending_pix.resume_url}
+                                    className="inline-flex h-11 w-full items-center justify-center rounded-full bg-emerald-500 text-sm font-extrabold tracking-wide text-emerald-950 hover:bg-emerald-400"
+                                >
+                                    Continuar último PIX
+                                </Link>
+                            ) : null}
+
+                            <Link
+                                href={purchase_widget?.history_url ?? route('billing.history')}
+                                className="inline-flex h-11 w-full items-center justify-center rounded-full bg-white/10 text-sm font-extrabold tracking-wide text-white hover:bg-white/15"
+                            >
+                                Ver histórico de compras
+                            </Link>
+                        </div>
                     </div>
 
                     {isPro ? (

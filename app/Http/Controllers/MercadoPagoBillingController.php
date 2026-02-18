@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PixPayment;
 use App\Models\Subscription;
+use App\Rules\Cpf;
 use App\Services\MercadoPagoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -38,6 +40,8 @@ class MercadoPagoBillingController extends Controller
         $request->validate([
             'plan' => 'required|in:monthly,annual',
             'method' => 'nullable|in:card,pix',
+            'cpf' => ['required_if:method,pix', new Cpf],
+            'save_cpf' => 'sometimes|boolean',
         ]);
 
         $user = $request->user();
@@ -61,20 +65,22 @@ class MercadoPagoBillingController extends Controller
             abort(422);
         }
 
-        // Se for PIX, cria pagamento avulso
         if ($method === 'pix') {
-            return $this->startPix($user, $mp, $planConfig, $notificationUrl);
+            $cpfRaw = $request->input('cpf');
+            $cpfDigits = is_string($cpfRaw) ? preg_replace('/\D+/', '', $cpfRaw) : '';
+            $saveCpf = $request->boolean('save_cpf');
+
+            return $this->startPix($user, $mp, $plan, $planConfig, $notificationUrl, $cpfDigits, $saveCpf);
         }
 
-        // Caso contrário, segue fluxo de assinatura (Card)
         $externalReference = $user->public_id
             ? 'user:'.$user->public_id
             : 'user:'.$user->id;
 
+
         $payload = [
             'reason' => is_string(config('mercadopago.reason')) ? config('mercadopago.reason') : 'Driver Pay - Pro',
             'payer_email' => $user->email,
-            'external_reference' => $externalReference.';plan:'.$plan,
             'auto_recurring' => [
                 'frequency' => (int) ($planConfig['frequency'] ?? 1),
                 'frequency_type' => (string) ($planConfig['frequency_type'] ?? 'months'),
@@ -120,19 +126,52 @@ class MercadoPagoBillingController extends Controller
         return Inertia::location($initPoint);
     }
 
-    private function startPix($user, MercadoPagoService $mp, array $planConfig, string $notificationUrl): SymfonyResponse
+    private function startPix($user, MercadoPagoService $mp, string $plan, array $planConfig, string $notificationUrl, string $cpfDigits, bool $saveCpf): SymfonyResponse
     {
         $amount = (float) ($planConfig['transaction_amount'] ?? 9.90);
-        
+
+        $existing = PixPayment::query()
+            ->where('provider', 'mercadopago')
+            ->where('user_id', $user->id)
+            ->where('plan', $plan)
+            ->where('status', 'pending')
+            ->whereNull('paid_at')
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '>', now())
+            ->latest()
+            ->first();
+
+        if ($existing) {
+            return Inertia::location(route('billing.mercadopago.pix', ['id' => $existing->payment_id]));
+        }
+
+        $externalReference = $user->public_id
+            ? 'user:'.$user->public_id
+            : 'user:'.$user->id;
+
+        $expiresAt = now()->addMinutes(15);
+
         $payload = [
             'transaction_amount' => $amount,
             'description' => 'Driver Pay - Plano Pro (PIX 30 dias)',
+            'external_reference' => $externalReference.';plan:'.$plan.';kind:pix',
+            'metadata' => [
+                'kind' => 'pro_pix_30d',
+                'plan' => $plan,
+                'user_id' => $user->id,
+                'user_public_id' => $user->public_id,
+            ],
             'payment_method_id' => 'pix',
             'payer' => [
                 'email' => $user->email,
                 'first_name' => $user->name,
+                'identification' => [
+                    'type' => 'CPF',
+                    'number' => $cpfDigits,
+                ],
             ],
             'notification_url' => $notificationUrl,
+            'date_of_expiration' => $expiresAt->toISOString(),
         ];
 
         try {
@@ -150,6 +189,23 @@ class MercadoPagoBillingController extends Controller
             abort(502);
         }
 
+        PixPayment::updateOrCreate(
+            [
+                'provider' => 'mercadopago',
+                'payment_id' => (string) $paymentId,
+            ],
+            [
+                'user_id' => $user->id,
+                'plan' => $plan,
+                'status' => is_string($payment['status'] ?? null) ? (string) $payment['status'] : 'pending',
+                'amount_brl' => $amount,
+                'cpf' => $saveCpf ? $cpfDigits : null,
+                'raw' => $payment,
+                'expires_at' => $expiresAt,
+                'paid_at' => null,
+            ],
+        );
+
         return Inertia::location(route('billing.mercadopago.pix', ['id' => $paymentId]));
     }
 
@@ -164,8 +220,7 @@ class MercadoPagoBillingController extends Controller
         $qrCode = $payment['point_of_interaction']['transaction_data']['qr_code'] ?? null;
         $qrCodeBase64 = $payment['point_of_interaction']['transaction_data']['qr_code_base64'] ?? null;
         $status = $payment['status'] ?? 'pending';
-        
-        // Verifica se expirou
+
         $expiresAt = $payment['date_of_expiration'] ?? null;
         if ($expiresAt && Carbon::parse($expiresAt)->isPast() && $status === 'pending') {
              $status = 'cancelled';
@@ -178,6 +233,7 @@ class MercadoPagoBillingController extends Controller
             'status' => $status,
             'amount' => $payment['transaction_amount'] ?? 0,
             'expires_at' => $expiresAt,
+            'expires_in_seconds' => $expiresAt ? max(0, now()->diffInSeconds(Carbon::parse($expiresAt), false)) : null,
         ]);
     }
 
