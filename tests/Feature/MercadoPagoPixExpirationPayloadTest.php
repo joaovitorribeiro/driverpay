@@ -17,6 +17,7 @@ class MercadoPagoPixExpirationPayloadTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-02-18 12:00:00', 'America/Sao_Paulo'));
         config()->set('app.timezone', 'America/Sao_Paulo');
         config()->set('services.mercadopago.access_token', 'token');
+        config()->set('services.mercadopago.webhook_url', ' `https://example.com/webhooks/mercadopago` ');
 
         $user = User::factory()->create([
             'name' => 'Teste',
@@ -50,7 +51,11 @@ class MercadoPagoPixExpirationPayloadTest extends TestCase
             $data = $request->data();
             $value = $data['date_of_expiration'] ?? null;
             if (! is_string($value)) return false;
-            return preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/', $value) === 1;
+            if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/', $value) !== 1) {
+                return false;
+            }
+
+            return ($data['notification_url'] ?? null) === 'https://example.com/webhooks/mercadopago';
         });
     }
 }

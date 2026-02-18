@@ -62,7 +62,8 @@ class MercadoPagoBillingController extends Controller
             : rtrim(config('app.url'), '/').'/api/webhooks/mercadopago';
 
         $notificationUrl = trim((string) $notificationUrl);
-        $notificationUrl = trim($notificationUrl, "` \t\n\r\0\x0B");
+        $notificationUrl = str_replace(["`", "\r", "\n", "\t"], '', $notificationUrl);
+        $notificationUrl = trim($notificationUrl, " \"'");
 
         if (! filter_var($notificationUrl, FILTER_VALIDATE_URL)) {
             abort(422);
