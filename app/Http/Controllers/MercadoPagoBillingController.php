@@ -61,6 +61,9 @@ class MercadoPagoBillingController extends Controller
             ? $webhookUrl
             : rtrim(config('app.url'), '/').'/api/webhooks/mercadopago';
 
+        $notificationUrl = trim((string) $notificationUrl);
+        $notificationUrl = trim($notificationUrl, "` \t\n\r\0\x0B");
+
         if (! filter_var($notificationUrl, FILTER_VALIDATE_URL)) {
             abort(422);
         }
@@ -168,7 +171,6 @@ class MercadoPagoBillingController extends Controller
             'payment_method_id' => 'pix',
             'payer' => [
                 'email' => $user->email,
-                'first_name' => $user->name,
                 'identification' => [
                     'type' => 'CPF',
                     'number' => $cpfDigits,
