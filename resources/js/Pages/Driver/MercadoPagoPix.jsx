@@ -69,11 +69,17 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
                             </div>
 
                             <div className="mt-8 rounded-xl bg-white p-4">
-                                <img 
-                                    src={`data:image/jpeg;base64,${qrCodeBase64}`} 
-                                    alt="QR Code PIX" 
-                                    className="mx-auto h-48 w-48 object-contain"
-                                />
+                                {qr_code_base64 ? (
+                                    <img 
+                                        src={`data:image/jpeg;base64,${qr_code_base64}`} 
+                                        alt="QR Code PIX" 
+                                        className="mx-auto h-48 w-48 object-contain"
+                                    />
+                                ) : (
+                                    <div className="flex h-48 w-48 items-center justify-center text-xs text-black/50">
+                                        Carregando QR Code...
+                                    </div>
+                                )}
                             </div>
 
                             <div className="mt-6">
