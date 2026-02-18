@@ -113,6 +113,8 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod }) {
 
     const cpfDigits = onlyDigits(cpf);
     const cpfReady = cpfDigits.length === 11 && isValidCpf(cpfDigits);
+    const isPixSelected = selectedMethod === 'pix';
+    const isCardSelected = selectedMethod === 'card' || selectedMethod === null;
 
     return (
         <Modal show={isOpen} onClose={onClose}>
@@ -134,11 +136,26 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod }) {
 
                 <div className="mt-6 grid gap-3">
                     <button
-                        onClick={() => onSelectMethod('card')}
-                        className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 transition-all hover:bg-emerald-500/20"
+                        onClick={() => {
+                            setSelectedMethod('card');
+                            onSelectMethod('card');
+                        }}
+                        className={
+                            (isCardSelected
+                                ? 'border-emerald-400/30 bg-emerald-500/10 hover:bg-emerald-500/20'
+                                : 'border-white/10 bg-white/5 hover:border-emerald-400/20 hover:bg-white/5') +
+                            ' group relative flex items-center justify-between overflow-hidden rounded-2xl border p-4 transition-all'
+                        }
                     >
                         <div className="flex items-center gap-4">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-emerald-950">
+                            <div
+                                className={
+                                    (isCardSelected
+                                        ? 'bg-emerald-500 text-emerald-950'
+                                        : 'bg-white/10 text-white') +
+                                    ' flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors'
+                                }
+                            >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
                                     <path d="M4.5 3.75a3 3 0 00-3 3v10.5a3 3 0 003 3h15a3 3 0 003-3V6.75a3 3 0 00-3-3h-15zM1.5 9h21V6.75a1.5 1.5 0 00-1.5-1.5h-15a1.5 1.5 0 00-1.5 1.5V9zm0 3v5.25a1.5 1.5 0 001.5 1.5h15a1.5 1.5 0 001.5-1.5V12h-21z" />
                                 </svg>
@@ -152,17 +169,34 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod }) {
                                 </div>
                             </div>
                         </div>
-                        <div className="mr-2 text-emerald-400 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div
+                            className={
+                                (isCardSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') +
+                                ' mr-2 text-emerald-400 transition-opacity'
+                            }
+                        >
                             ➝
                         </div>
                     </button>
 
                     <button
                         onClick={() => setSelectedMethod('pix')}
-                        className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 transition-all hover:border-emerald-400/30 hover:bg-emerald-500/10"
+                        className={
+                            (isPixSelected
+                                ? 'border-emerald-400/30 bg-emerald-500/10 hover:bg-emerald-500/20'
+                                : 'border-white/10 bg-white/5 hover:border-emerald-400/30 hover:bg-emerald-500/10') +
+                            ' group relative flex items-center justify-between overflow-hidden rounded-2xl border p-4 transition-all'
+                        }
                     >
                         <div className="flex items-center gap-4">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
+                            <div
+                                className={
+                                    (isPixSelected
+                                        ? 'bg-emerald-500 text-emerald-950'
+                                        : 'bg-white/10 text-white') +
+                                    ' flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors'
+                                }
+                            >
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
                                     <path fillRule="evenodd" d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 00.374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.352-.199-2.64-.563-3.821a.75.75 0 00-.722-.515 11.208 11.208 0 01-7.877-3.08zM12 5.75a.75.75 0 01.75.75v4.99l3.712-1.485a.75.75 0 11.556 1.392l-4.136 1.653a.75.75 0 01-1.056-.69V6.5a.75.75 0 01.75-.75z" clipRule="evenodd" />
                                 </svg>
@@ -176,7 +210,12 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod }) {
                                 </div>
                             </div>
                         </div>
-                        <div className="mr-2 text-emerald-400 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div
+                            className={
+                                (isPixSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') +
+                                ' mr-2 text-emerald-400 transition-opacity'
+                            }
+                        >
                             ➝
                         </div>
                     </button>
@@ -300,38 +339,6 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
                         </p>
                     </div>
 
-                    <div className="mt-8 rounded-[26px] border border-white/10 bg-[#0b1424]/55 p-6 text-white/80 shadow-2xl shadow-black/35">
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="text-base font-extrabold text-white">
-                                Histórico de compras
-                            </div>
-                            <div className="rounded-full border border-amber-400/25 bg-amber-500/15 px-3 py-1 text-xs font-extrabold text-amber-200">
-                                {purchase_widget?.pending_pix_count ?? 0} pendente{(purchase_widget?.pending_pix_count ?? 0) === 1 ? '' : 's'}
-                            </div>
-                        </div>
-                        <div className="mt-2 text-sm leading-relaxed text-white/65">
-                            Acompanhe pagamentos pendentes, em andamento e concluídos.
-                        </div>
-
-                        <div className="mt-5 grid gap-3">
-                            {purchase_widget?.last_pending_pix?.resume_url ? (
-                                <Link
-                                    href={purchase_widget.last_pending_pix.resume_url}
-                                    className="inline-flex h-11 w-full items-center justify-center rounded-full bg-emerald-500 text-sm font-extrabold tracking-wide text-emerald-950 hover:bg-emerald-400"
-                                >
-                                    Continuar último PIX
-                                </Link>
-                            ) : null}
-
-                            <Link
-                                href={purchase_widget?.history_url ?? route('billing.history')}
-                                className="inline-flex h-11 w-full items-center justify-center rounded-full bg-white/10 text-sm font-extrabold tracking-wide text-white hover:bg-white/15"
-                            >
-                                Ver histórico de compras
-                            </Link>
-                        </div>
-                    </div>
-
                     {isPro ? (
                         <div className="mt-8 rounded-[26px] border border-emerald-400/30 bg-emerald-500/10 p-6 text-white shadow-2xl shadow-black/35">
                             <div className="text-lg font-extrabold tracking-tight">
@@ -435,6 +442,38 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
                             */}
                         </>
                     )}
+
+                    <div className="mt-10 rounded-[26px] border border-white/10 bg-[#0b1424]/55 p-6 text-white/80 shadow-2xl shadow-black/35">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="text-base font-extrabold text-white">
+                                Histórico de compras
+                            </div>
+                            <div className="rounded-full border border-amber-400/25 bg-amber-500/15 px-3 py-1 text-xs font-extrabold text-amber-200">
+                                {purchase_widget?.pending_pix_count ?? 0} pendente{(purchase_widget?.pending_pix_count ?? 0) === 1 ? '' : 's'}
+                            </div>
+                        </div>
+                        <div className="mt-2 text-sm leading-relaxed text-white/65">
+                            Acompanhe pagamentos pendentes, em andamento e concluídos.
+                        </div>
+
+                        <div className="mt-5 grid gap-3">
+                            {purchase_widget?.last_pending_pix?.resume_url ? (
+                                <Link
+                                    href={purchase_widget.last_pending_pix.resume_url}
+                                    className="inline-flex h-11 w-full items-center justify-center rounded-full bg-emerald-500 text-sm font-extrabold tracking-wide text-emerald-950 hover:bg-emerald-400"
+                                >
+                                    Continuar último PIX
+                                </Link>
+                            ) : null}
+
+                            <Link
+                                href={purchase_widget?.history_url ?? route('billing.history')}
+                                className="inline-flex h-11 w-full items-center justify-center rounded-full bg-white/10 text-sm font-extrabold tracking-wide text-white hover:bg-white/15"
+                            >
+                                Ver histórico de compras
+                            </Link>
+                        </div>
+                    </div>
                 </div>
             </div>
         </DriverLayout>
