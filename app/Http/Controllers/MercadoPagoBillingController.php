@@ -102,7 +102,7 @@ class MercadoPagoBillingController extends Controller
                 'user_id' => $user->id,
                 'plan' => $plan,
                 'status' => 'pending',
-                'auto_renewing' => true,
+                'auto_renewing' => 'true',
                 'started_at' => now(),
                 'current_period_end_at' => $periodEnd,
                 'raw' => $created,

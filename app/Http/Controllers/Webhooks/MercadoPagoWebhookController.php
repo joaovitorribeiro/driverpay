@@ -229,7 +229,7 @@ class MercadoPagoWebhookController
                 'user_id' => $user->id,
                 'plan' => $this->planFromExternalReference($preapproval['external_reference'] ?? null),
                 'status' => $status,
-                'auto_renewing' => $status === 'active',
+                'auto_renewing' => $status === 'active' ? 'true' : 'false',
                 'started_at' => $startedAt,
                 'current_period_start_at' => $startedAt,
                 'current_period_end_at' => $periodEnd,
