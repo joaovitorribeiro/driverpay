@@ -52,30 +52,46 @@ class MercadoPagoWebhookController
 
             [$preapproval, $payment] = $this->resolveResources($request, $mp, $dataId);
 
-            $user = $this->resolveUser($preapproval);
-            if (! $user) {
-                throw new RuntimeException('User not resolved for preapproval.');
+            if ($preapproval) {
+                $user = $this->resolveUser($preapproval);
+                if (! $user) {
+                    throw new RuntimeException('User not resolved for preapproval.');
+                }
+
+                $subscription = $this->upsertSubscription($user, $preapproval);
+
+                $subscription->events()->create([
+                    'provider' => $provider,
+                    'event_type' => $eventType,
+                    'occurred_at' => $this->occurredAt($request),
+                    'payload' => [
+                        'webhook' => $request->all(),
+                        'preapproval' => $preapproval,
+                        'payment' => $payment,
+                    ],
+                ]);
+
+                $notification->forceFill([
+                    'processed_at' => now(),
+                    'processing_error' => null,
+                    'user_id' => $user->id,
+                    'subscription_id' => $subscription->id,
+                ])->save();
+            } elseif ($payment) {
+                $user = $this->resolveUserFromPayment($payment);
+                if (! $user) {
+                    throw new RuntimeException('User not resolved for payment.');
+                }
+
+                // Handle single payment (PIX)
+                $this->processSinglePayment($user, $payment);
+
+                $notification->forceFill([
+                    'processed_at' => now(),
+                    'processing_error' => null,
+                    'user_id' => $user->id,
+                ])->save();
             }
-
-            $subscription = $this->upsertSubscription($user, $preapproval);
-
-            $subscription->events()->create([
-                'provider' => $provider,
-                'event_type' => $eventType,
-                'occurred_at' => $this->occurredAt($request),
-                'payload' => [
-                    'webhook' => $request->all(),
-                    'preapproval' => $preapproval,
-                    'payment' => $payment,
-                ],
-            ]);
-
-            $notification->forceFill([
-                'processed_at' => now(),
-                'processing_error' => null,
-                'user_id' => $user->id,
-                'subscription_id' => $subscription->id,
-            ])->save();
 
             return response()->json(['ok' => true]);
         } catch (Throwable $e) {
@@ -152,12 +168,15 @@ class MercadoPagoWebhookController
             }
 
             $payment = $mp->getPayment($paymentId);
+            
+            // Check if it's a subscription payment
             $preapprovalId = is_string($payment['preapproval_id'] ?? null) ? $payment['preapproval_id'] : null;
-            if (! $preapprovalId) {
-                throw new RuntimeException('Preapproval id not found in payment.');
+            if ($preapprovalId) {
+                return [$mp->getPreapproval($preapprovalId), $payment];
             }
 
-            return [$mp->getPreapproval($preapprovalId), $payment];
+            // It's a regular payment (PIX, etc)
+            return [null, $payment];
         }
 
         if (is_string($dataId) && trim($dataId) !== '') {
@@ -165,6 +184,32 @@ class MercadoPagoWebhookController
         }
 
         throw new RuntimeException('Unable to resolve resource.');
+    }
+
+    private function resolveUserFromPayment(array $payment): ?User
+    {
+        $email = $payment['payer']['email'] ?? null;
+        if (is_string($email) && trim($email) !== '') {
+            return User::query()->where('email', $email)->first();
+        }
+
+        return null;
+    }
+
+    private function processSinglePayment(User $user, array $payment): void
+    {
+        $status = $payment['status'] ?? null;
+        $statusDetail = $payment['status_detail'] ?? null;
+
+        if ($status === 'approved' && $statusDetail === 'accredited') {
+            // Grant 30 days of access
+            $currentBonus = $user->pro_bonus_until;
+            $start = ($currentBonus && $currentBonus->isFuture()) ? $currentBonus : now();
+            
+            $user->forceFill([
+                'pro_bonus_until' => $start->addDays(30),
+            ])->save();
+        }
     }
 
     private function resolveUser(array $preapproval): ?User

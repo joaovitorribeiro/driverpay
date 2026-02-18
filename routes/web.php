@@ -52,6 +52,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/billing/google/manage', [ProController::class, 'manage'])->name('billing.google.manage');
     Route::get('/billing/mercadopago', [MercadoPagoBillingController::class, 'portal'])->name('billing.mercadopago.portal');
     Route::post('/billing/mercadopago/start', [MercadoPagoBillingController::class, 'start'])->name('billing.mercadopago.start');
+    Route::get('/billing/mercadopago/pix/{id}', [MercadoPagoBillingController::class, 'showPix'])->name('billing.mercadopago.pix');
     Route::post('/billing/mercadopago/cancel', [MercadoPagoBillingController::class, 'cancel'])->name('billing.mercadopago.cancel');
     Route::get('/billing/mercadopago/return', [MercadoPagoBillingController::class, 'back'])->name('billing.mercadopago.return');
 

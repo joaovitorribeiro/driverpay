@@ -71,4 +71,12 @@ class MercadoPagoService
             ->throw()
             ->json();
     }
+
+    public function createPayment(array $payload): array
+    {
+        return $this->client((string) Str::uuid())
+            ->post('/v1/payments', $payload)
+            ->throw()
+            ->json();
+    }
 }

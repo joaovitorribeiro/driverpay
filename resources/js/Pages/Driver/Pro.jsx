@@ -1,5 +1,7 @@
 import DriverLayout from '@/Layouts/DriverLayout';
 import { Head, Link, router } from '@inertiajs/react';
+import Modal from '@/Components/Modal';
+import { useState } from 'react';
 
 function PriceCard({ title, price, cadence, highlight, onSelect, badge }) {
     return (
@@ -60,13 +62,109 @@ function PriceCard({ title, price, cadence, highlight, onSelect, badge }) {
     );
 }
 
+function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod }) {
+    return (
+        <Modal show={isOpen} onClose={onClose}>
+            <div className="bg-[#0b1424] p-6 text-white">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-extrabold tracking-tight">
+                        Escolha como pagar
+                    </h2>
+                    <button
+                        onClick={onClose}
+                        className="rounded-full p-2 text-white/45 hover:bg-white/10 hover:text-white"
+                    >
+                        ✕
+                    </button>
+                </div>
+                <div className="mt-2 text-sm text-white/65">
+                    Você escolheu o plano <span className="font-bold text-white">{plan === 'annual' ? 'Anual' : 'Mensal'}</span>.
+                </div>
+
+                <div className="mt-6 grid gap-3">
+                    <button
+                        onClick={() => onSelectMethod('card')}
+                        className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 transition-all hover:bg-emerald-500/20"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-emerald-950">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                                    <path d="M4.5 3.75a3 3 0 00-3 3v10.5a3 3 0 003 3h15a3 3 0 003-3V6.75a3 3 0 00-3-3h-15zM1.5 9h21V6.75a1.5 1.5 0 00-1.5-1.5h-15a1.5 1.5 0 00-1.5 1.5V9zm0 3v5.25a1.5 1.5 0 001.5 1.5h15a1.5 1.5 0 001.5-1.5V12h-21z" />
+                                </svg>
+                            </div>
+                            <div className="text-left">
+                                <div className="font-extrabold text-white group-hover:text-emerald-300">
+                                    Cartão de Crédito
+                                </div>
+                                <div className="text-xs text-white/50">
+                                    Assinatura com renovação automática
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mr-2 text-emerald-400 opacity-0 transition-opacity group-hover:opacity-100">
+                            ➝
+                        </div>
+                    </button>
+
+                    <button
+                        onClick={() => onSelectMethod('pix')}
+                        className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 transition-all hover:border-emerald-400/30 hover:bg-emerald-500/10"
+                    >
+                        <div className="flex items-center gap-4">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                                    <path fillRule="evenodd" d="M12.516 2.17a.75.75 0 00-1.032 0 11.209 11.209 0 01-7.877 3.08.75.75 0 00-.722.515A12.74 12.74 0 002.25 9.75c0 5.942 4.064 10.933 9.563 12.348a.749.749 0 00.374 0c5.499-1.415 9.563-6.406 9.563-12.348 0-1.352-.199-2.64-.563-3.821a.75.75 0 00-.722-.515 11.208 11.208 0 01-7.877-3.08zM12 5.75a.75.75 0 01.75.75v4.99l3.712-1.485a.75.75 0 11.556 1.392l-4.136 1.653a.75.75 0 01-1.056-.69V6.5a.75.75 0 01.75-.75z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <div className="text-left">
+                                <div className="font-extrabold text-white group-hover:text-emerald-300">
+                                    PIX (Avulso)
+                                </div>
+                                <div className="text-xs text-white/50">
+                                    Pague agora e use por 30 dias (sem renovação)
+                                </div>
+                            </div>
+                        </div>
+                        <div className="mr-2 text-emerald-400 opacity-0 transition-opacity group-hover:opacity-100">
+                            ➝
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </Modal>
+    );
+}
+
 export default function Pro({ pricing, google_billing, mercadopago_billing, entitlements }) {
     const isPro = !!entitlements?.is_pro;
     const mpEnabled = !!mercadopago_billing?.enabled;
 
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedPlan, setSelectedPlan] = useState(null);
+
+    const handleSelectPlan = (plan) => {
+        setSelectedPlan(plan);
+        setIsModalOpen(true);
+    };
+
+    const handleProceedPayment = (method) => {
+        setIsModalOpen(false);
+        router.post(route('billing.mercadopago.start'), {
+            plan: selectedPlan,
+            method: method,
+        });
+    };
+
     return (
         <DriverLayout>
             <Head title="Pro" />
+
+            <PaymentMethodModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                plan={selectedPlan}
+                onSelectMethod={handleProceedPayment}
+            />
 
             <div className="px-4 pb-14 pt-10">
                 <div className="mx-auto w-full max-w-md">
@@ -151,22 +249,14 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
                                         cadence="mês"
                                         highlight
                                         badge="Mais popular"
-                                        onSelect={() =>
-                                            router.post(route('billing.mercadopago.start'), {
-                                                plan: 'monthly',
-                                            })
-                                        }
+                                        onSelect={() => handleSelectPlan('monthly')}
                                     />
                                     <PriceCard
                                         title="Anual"
                                         price={pricing?.annual_brl ?? '79,90'}
                                         cadence="ano"
                                         badge="Economize"
-                                        onSelect={() =>
-                                            router.post(route('billing.mercadopago.start'), {
-                                                plan: 'annual',
-                                            })
-                                        }
+                                        onSelect={() => handleSelectPlan('annual')}
                                     />
                                 </div>
                             ) : (
