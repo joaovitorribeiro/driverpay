@@ -150,6 +150,10 @@ class MercadoPagoBillingController extends Controller
             : 'user:'.$user->id;
 
         $expiresAt = now()->addMinutes(15);
+        $expiresAtIso = $expiresAt
+            ->copy()
+            ->setTimezone(config('app.timezone') ?: 'UTC')
+            ->format('Y-m-d\\TH:i:sP');
 
         $payload = [
             'transaction_amount' => $amount,
@@ -171,7 +175,7 @@ class MercadoPagoBillingController extends Controller
                 ],
             ],
             'notification_url' => $notificationUrl,
-            'date_of_expiration' => $expiresAt->toISOString(),
+            'date_of_expiration' => $expiresAtIso,
         ];
 
         try {
@@ -246,7 +250,7 @@ class MercadoPagoBillingController extends Controller
 
         $subscription = $user->subscriptions()
             ->where('provider', 'mercadopago')
-            ->whereNotIn('status', ['canceled'])
+            ->whereNotIn('status', ['canceled', 'cancelled'])
             ->latest()
             ->first();
 
@@ -254,10 +258,25 @@ class MercadoPagoBillingController extends Controller
             abort(404);
         }
 
-        $cancelled = $mp->cancelPreapproval($subscription->purchase_token);
+        try {
+            $cancelled = $mp->cancelPreapproval($subscription->purchase_token);
+        } catch (Throwable $e) {
+            report($e);
+            return back()->withErrors([
+                'mercadopago' => 'Não foi possível cancelar no Mercado Pago. Tente novamente.',
+            ]);
+        }
+
+        $mpStatus = is_string($cancelled['status'] ?? null) ? (string) $cancelled['status'] : null;
+        if ($mpStatus !== 'cancelled') {
+            return back()->withErrors([
+                'mercadopago' => 'Mercado Pago não confirmou o cancelamento. Atualize e tente novamente.',
+            ]);
+        }
 
         $subscription->forceFill([
             'status' => 'canceled',
+            'auto_renewing' => false,
             'canceled_at' => now(),
             'ended_at' => now(),
             'raw' => $cancelled,

@@ -1,5 +1,5 @@
 import DriverLayout from '@/Layouts/DriverLayout';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 
 function StatusPill({ status }) {
     const normalized = (status || '').toLowerCase();
@@ -25,8 +25,10 @@ function StatusPill({ status }) {
 }
 
 export default function MercadoPagoBilling({ subscription }) {
+    const errors = usePage().props.errors ?? {};
+    const errorMessage = errors?.mercadopago ?? null;
     const status = subscription?.status || null;
-    const canCancel = status && !['canceled'].includes(status);
+    const canCancel = status && !['canceled', 'cancelled'].includes(status);
 
     return (
         <DriverLayout>
@@ -48,6 +50,11 @@ export default function MercadoPagoBilling({ subscription }) {
 
                     {subscription ? (
                         <div className="mt-8 rounded-[26px] border border-white/10 bg-[#0b1424]/55 p-6 text-white shadow-2xl shadow-black/35">
+                            {errorMessage ? (
+                                <div className="mb-5 rounded-[18px] border border-rose-400/20 bg-rose-500/10 p-4 text-sm font-semibold text-rose-200">
+                                    {errorMessage}
+                                </div>
+                            ) : null}
                             <div className="flex items-center justify-between gap-4">
                                 <div className="text-base font-extrabold text-white">
                                     Assinatura atual
