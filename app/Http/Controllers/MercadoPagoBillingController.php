@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Throwable;
 
 class MercadoPagoBillingController extends Controller
 {
@@ -54,6 +55,10 @@ class MercadoPagoBillingController extends Controller
             ? $webhookUrl
             : rtrim(config('app.url'), '/').'/api/webhooks/mercadopago';
 
+        if (! filter_var($notificationUrl, FILTER_VALIDATE_URL)) {
+            abort(422);
+        }
+
         $externalReference = $user->public_id
             ? 'user:'.$user->public_id
             : 'user:'.$user->id;
@@ -72,7 +77,12 @@ class MercadoPagoBillingController extends Controller
             'notification_url' => $notificationUrl,
         ];
 
-        $created = $mp->createPreapproval($payload);
+        try {
+            $created = $mp->createPreapproval($payload);
+        } catch (Throwable $e) {
+            report($e);
+            abort(502);
+        }
 
         $preapprovalId = is_string($created['id'] ?? null) ? $created['id'] : null;
         $initPoint = is_string($created['init_point'] ?? null) ? $created['init_point'] : null;

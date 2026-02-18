@@ -88,13 +88,9 @@ export default function Settings({ settings }) {
             parseLocaleNumber(settings?.consumption_km_per_l ?? 0, { maxDecimals: 2 }),
             2,
         ),
-        maintenance_monthly_brl: settings?.maintenance_monthly_brl
-            ? formatMoneyInput(settings?.maintenance_monthly_brl)
-            : '',
+        maintenance_monthly_brl: formatMoneyInput(settings?.maintenance_monthly_brl ?? '0'),
         maintenance_items: settings?.maintenance_items ?? [],
-        rent_monthly_brl: settings?.rent_monthly_brl
-            ? formatMoneyInput(settings?.rent_monthly_brl)
-            : '',
+        rent_monthly_brl: formatMoneyInput(settings?.rent_monthly_brl ?? '0'),
         rent_items: settings?.rent_items ?? [],
         extra_monthly_items: settings?.extra_monthly_items ?? [],
     });
@@ -268,11 +264,9 @@ export default function Settings({ settings }) {
                                 onBlur={() =>
                                     form.setData(
                                         'maintenance_monthly_brl',
-                                        form.data.maintenance_monthly_brl
-                                            ? formatMoneyInput(
-                                                  form.data.maintenance_monthly_brl,
-                                              )
-                                            : '',
+                                        formatMoneyInput(
+                                            form.data.maintenance_monthly_brl || '0',
+                                        ),
                                     )
                                 }
                             />
@@ -293,9 +287,7 @@ export default function Settings({ settings }) {
                                 onBlur={() =>
                                     form.setData(
                                         'rent_monthly_brl',
-                                        form.data.rent_monthly_brl
-                                            ? formatMoneyInput(form.data.rent_monthly_brl)
-                                            : '',
+                                        formatMoneyInput(form.data.rent_monthly_brl || '0'),
                                     )
                                 }
                             />
