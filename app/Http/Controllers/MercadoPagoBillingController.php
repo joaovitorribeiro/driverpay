@@ -73,7 +73,7 @@ class MercadoPagoBillingController extends Controller
                 'transaction_amount' => (float) ($planConfig['transaction_amount'] ?? 9.90),
                 'currency_id' => (string) (config('mercadopago.currency') ?? 'BRL'),
             ],
-            'back_url' => route('billing.mercadopago.return'),
+            'back_url' => rtrim(config('app.url'), '/').'/billing/mercadopago/return',
             'notification_url' => $notificationUrl,
         ];
 
@@ -138,11 +138,11 @@ class MercadoPagoBillingController extends Controller
             'raw' => $cancelled,
         ])->save();
 
-        return Inertia::location(route('billing.mercadopago.portal'));
+        return Inertia::location(url('/billing/mercadopago'));
     }
 
     public function back(Request $request): SymfonyResponse
     {
-        return Inertia::location(route('billing.mercadopago.portal'));
+        return Inertia::location(url('/billing/mercadopago'));
     }
 }
