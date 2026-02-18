@@ -13,6 +13,7 @@ class ProController extends Controller
     {
         $user = $request->user();
         $isPro = $user ? $user->isProAccess() : false;
+        $mpEnabled = is_string(config('services.mercadopago.access_token')) && trim((string) config('services.mercadopago.access_token')) !== '';
 
         return Inertia::render('Driver/Pro', [
             'entitlements' => [
@@ -27,6 +28,10 @@ class ProController extends Controller
                 'package_name' => env('GOOGLE_PLAY_PACKAGE_NAME'),
                 'sku_monthly' => env('GOOGLE_PLAY_SUBSCRIPTION_SKU_MONTHLY'),
                 'sku_annual' => env('GOOGLE_PLAY_SUBSCRIPTION_SKU_ANNUAL'),
+            ],
+            'mercadopago_billing' => [
+                'enabled' => $mpEnabled,
+                'portal_url' => route('billing.mercadopago.portal'),
             ],
         ]);
     }

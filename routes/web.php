@@ -8,6 +8,7 @@ use App\Http\Controllers\DriverReferController;
 use App\Http\Controllers\DriverSettingsController;
 use App\Http\Controllers\LegalDocumentController;
 use App\Http\Controllers\LogViewerController;
+use App\Http\Controllers\MercadoPagoBillingController;
 use App\Http\Controllers\ProController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserManagementController;
@@ -49,6 +50,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/pro', [ProController::class, 'show'])->name('pro');
     Route::post('/billing/google/start', [ProController::class, 'start'])->name('billing.google.start');
     Route::get('/billing/google/manage', [ProController::class, 'manage'])->name('billing.google.manage');
+    Route::get('/billing/mercadopago', [MercadoPagoBillingController::class, 'portal'])->name('billing.mercadopago.portal');
+    Route::post('/billing/mercadopago/start', [MercadoPagoBillingController::class, 'start'])->name('billing.mercadopago.start');
+    Route::post('/billing/mercadopago/cancel', [MercadoPagoBillingController::class, 'cancel'])->name('billing.mercadopago.cancel');
+    Route::get('/billing/mercadopago/return', [MercadoPagoBillingController::class, 'back'])->name('billing.mercadopago.return');
 
     Route::get('/refer', [DriverReferController::class, 'show'])->name('refer');
 
@@ -66,6 +71,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::get('/costs/export', [DriverCostController::class, 'export'])
+        ->middleware('pro')
         ->name('costs.export');
     Route::resource('costs', DriverCostController::class)->except(['show']);
 

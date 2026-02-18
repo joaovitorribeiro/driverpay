@@ -60,8 +60,9 @@ function PriceCard({ title, price, cadence, highlight, onSelect, badge }) {
     );
 }
 
-export default function Pro({ pricing, google_billing, entitlements }) {
+export default function Pro({ pricing, google_billing, mercadopago_billing, entitlements }) {
     const isPro = !!entitlements?.is_pro;
+    const mpEnabled = !!mercadopago_billing?.enabled;
 
     return (
         <DriverLayout>
@@ -100,45 +101,86 @@ export default function Pro({ pricing, google_billing, entitlements }) {
                                 Pro ativo
                             </div>
                             <div className="mt-2 text-sm leading-relaxed text-white/70">
-                                Sua assinatura está ativa. Use “Gerenciar
-                                assinaturas” para trocar plano, cancelar ou ver
-                                cobranças no Google.
+                                Sua assinatura está ativa. Use “Gerenciar assinatura” para ver status e cancelar.
                             </div>
-                            <Link
-                                href={route('billing.google.manage')}
-                                className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-emerald-500 text-sm font-extrabold tracking-wide text-emerald-950 hover:bg-emerald-400"
-                            >
-                                Gerenciar assinaturas
-                            </Link>
+                            <div className="mt-5 grid gap-3">
+                                {mpEnabled ? (
+                                    <Link
+                                        href={route('billing.mercadopago.portal')}
+                                        className="inline-flex h-11 w-full items-center justify-center rounded-full bg-emerald-500 text-sm font-extrabold tracking-wide text-emerald-950 hover:bg-emerald-400"
+                                    >
+                                        Gerenciar no Mercado Pago
+                                    </Link>
+                                ) : (
+                                    <div className="rounded-[18px] border border-white/10 bg-[#0b1424]/35 p-4 text-sm text-white/65">
+                                        Configure MP_ACCESS_TOKEN para habilitar o Mercado Pago.
+                                    </div>
+                                )}
+                                {/*
+                                <Link
+                                    href={route('billing.google.manage')}
+                                    className="inline-flex h-11 w-full items-center justify-center rounded-full bg-white/10 text-sm font-extrabold tracking-wide text-white hover:bg-white/15"
+                                >
+                                    Gerenciar no Google
+                                </Link>
+                                */}
+                            </div>
                         </div>
                     ) : (
                         <>
-                            <div className="mt-10 grid gap-4">
-                                <PriceCard
-                                    title="Mensal"
-                                    price={pricing?.monthly_brl ?? '9,90'}
-                                    cadence="mês"
-                                    highlight
-                                    badge="Mais popular"
-                                    onSelect={() =>
-                                        router.post(route('billing.google.start'), {
-                                            plan: 'monthly',
-                                        })
-                                    }
-                                />
-                                <PriceCard
-                                    title="Anual"
-                                    price={pricing?.annual_brl ?? '79,90'}
-                                    cadence="ano"
-                                    badge="Economize"
-                                    onSelect={() =>
-                                        router.post(route('billing.google.start'), {
-                                            plan: 'annual',
-                                        })
-                                    }
-                                />
+                            <div className="mt-10 rounded-[26px] border border-white/10 bg-[#0b1424]/55 p-6 text-white/80 shadow-2xl shadow-black/35">
+                                <div className="text-base font-extrabold text-white">
+                                    Pagamento via Mercado Pago
+                                </div>
+                                <div className="mt-2 text-sm leading-relaxed text-white/65">
+                                    Assine com cartão/Pix pelo Mercado Pago. O acesso Pro é liberado automaticamente quando o pagamento é autorizado.
+                                </div>
+                                <Link
+                                    href={route('billing.mercadopago.portal')}
+                                    className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-white/10 text-sm font-extrabold tracking-wide text-white hover:bg-white/15"
+                                >
+                                    Ver detalhes da assinatura
+                                </Link>
                             </div>
 
+                            {mpEnabled ? (
+                                <div className="mt-4 grid gap-4">
+                                    <PriceCard
+                                        title="Mensal"
+                                        price={pricing?.monthly_brl ?? '9,90'}
+                                        cadence="mês"
+                                        highlight
+                                        badge="Mais popular"
+                                        onSelect={() =>
+                                            router.post(route('billing.mercadopago.start'), {
+                                                plan: 'monthly',
+                                            })
+                                        }
+                                    />
+                                    <PriceCard
+                                        title="Anual"
+                                        price={pricing?.annual_brl ?? '79,90'}
+                                        cadence="ano"
+                                        badge="Economize"
+                                        onSelect={() =>
+                                            router.post(route('billing.mercadopago.start'), {
+                                                plan: 'annual',
+                                            })
+                                        }
+                                    />
+                                </div>
+                            ) : (
+                                <div className="mt-4 rounded-[26px] border border-white/10 bg-[#0b1424]/55 p-6 text-white/80 shadow-2xl shadow-black/35">
+                                    <div className="text-base font-extrabold text-white">
+                                        Mercado Pago não configurado
+                                    </div>
+                                    <div className="mt-2 text-sm leading-relaxed text-white/65">
+                                        Configure MP_ACCESS_TOKEN no .env para habilitar assinaturas.
+                                    </div>
+                                </div>
+                            )}
+
+                            {/*
                             <div className="mt-8 rounded-[26px] border border-white/10 bg-[#0b1424]/55 p-6 text-white/80 shadow-2xl shadow-black/35">
                                 <div className="text-base font-extrabold text-white">
                                     Pagamento via Google Billing
@@ -161,6 +203,7 @@ export default function Pro({ pricing, google_billing, entitlements }) {
                                     </div>
                                 ) : null}
                             </div>
+                            */}
                         </>
                     )}
                 </div>

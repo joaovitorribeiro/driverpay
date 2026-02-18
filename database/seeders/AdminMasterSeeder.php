@@ -15,17 +15,17 @@ class AdminMasterSeeder extends Seeder
 
         $master = [
             'role' => Roles::MASTER,
-            'name' => env('SEED_MASTER_NAME', env('MASTER_NAME', 'Master')),
-            'email' => env('SEED_MASTER_EMAIL', env('MASTER_EMAIL')),
-            'password' => env('SEED_MASTER_PASSWORD', env('MASTER_PASSWORD', $defaultPassword)),
+            'name' => env('MASTER_NAME', env('SEED_MASTER_NAME', 'Master')),
+            'email' => env('MASTER_EMAIL', env('SEED_MASTER_EMAIL')),
+            'password' => env('MASTER_PASSWORD', env('SEED_MASTER_PASSWORD', $defaultPassword)),
         ];
 
-        $adminPassword = env('SEED_ADMIN_PASSWORD', env('ADMIN_PASSWORD', $defaultPassword));
-        $adminName = env('SEED_ADMIN_NAME', env('ADMIN_NAME', 'Admin'));
+        $adminPassword = env('ADMIN_PASSWORD', env('SEED_ADMIN_PASSWORD', $defaultPassword));
+        $adminName = env('ADMIN_NAME', env('SEED_ADMIN_NAME', 'Admin'));
         $adminEmailsRaw = env('ADMIN_EMAILS');
         $adminEmails = is_string($adminEmailsRaw) && trim($adminEmailsRaw) !== ''
             ? preg_split('/[,\s;]+/', $adminEmailsRaw, -1, PREG_SPLIT_NO_EMPTY)
-            : [env('SEED_ADMIN_EMAIL', env('ADMIN_EMAIL'))];
+            : array_filter([env('ADMIN_EMAIL', env('SEED_ADMIN_EMAIL'))]);
 
         $usersToSeed = [$master];
 

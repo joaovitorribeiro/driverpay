@@ -72,11 +72,8 @@ class User extends Authenticatable
     {
         return $this->subscriptions()
             ->whereIn('status', ['active', 'trialing', 'grace_period'])
-            ->where(function ($query) {
-                $query
-                    ->whereNull('current_period_end_at')
-                    ->orWhere('current_period_end_at', '>', now());
-            })
+            ->whereNotNull('current_period_end_at')
+            ->where('current_period_end_at', '>', now())
             ->exists();
     }
 
