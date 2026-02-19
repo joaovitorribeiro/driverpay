@@ -40,6 +40,11 @@ class MercadoPagoBillingController extends Controller
             'method' => 'nullable|in:card,pix',
         ]);
 
+        $mpEnabled = is_string(config('services.mercadopago.access_token')) && trim((string) config('services.mercadopago.access_token')) !== '';
+        if (! $mpEnabled) {
+            abort(422, 'Mercado Pago não está configurado.');
+        }
+
         $user = $request->user();
         if (! $user) {
             abort(401);
