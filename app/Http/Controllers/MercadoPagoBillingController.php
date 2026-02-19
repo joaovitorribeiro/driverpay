@@ -6,6 +6,7 @@ use App\Models\Subscription;
 use App\Services\MercadoPagoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
@@ -42,7 +43,9 @@ class MercadoPagoBillingController extends Controller
 
         $mpEnabled = is_string(config('services.mercadopago.access_token')) && trim((string) config('services.mercadopago.access_token')) !== '';
         if (! $mpEnabled) {
-            abort(422, 'Mercado Pago não está configurado.');
+            throw ValidationException::withMessages([
+                'mercadopago' => 'Configure o MP_ACCESS_TOKEN para habilitar o Mercado Pago.',
+            ]);
         }
 
         $user = $request->user();
@@ -67,7 +70,9 @@ class MercadoPagoBillingController extends Controller
         $notificationUrl = trim($notificationUrl, " \"'");
 
         if (! filter_var($notificationUrl, FILTER_VALIDATE_URL)) {
-            abort(422);
+            throw ValidationException::withMessages([
+                'mercadopago' => 'Webhook URL inválida. Verifique APP_URL/MP_WEBHOOK_URL.',
+            ]);
         }
 
         // Se for PIX, cria pagamento avulso
@@ -98,13 +103,17 @@ class MercadoPagoBillingController extends Controller
             $created = $mp->createPreapproval($payload);
         } catch (Throwable $e) {
             report($e);
-            abort(502);
+            throw ValidationException::withMessages([
+                'mercadopago' => 'Não foi possível iniciar a assinatura no Mercado Pago. Tente novamente.',
+            ]);
         }
 
         $preapprovalId = is_string($created['id'] ?? null) ? $created['id'] : null;
         $initPoint = is_string($created['init_point'] ?? null) ? $created['init_point'] : null;
         if (! $preapprovalId || ! $initPoint) {
-            abort(502);
+            throw ValidationException::withMessages([
+                'mercadopago' => 'Resposta inválida do Mercado Pago ao iniciar assinatura.',
+            ]);
         }
 
         $nextPaymentDate = $created['auto_recurring']['next_payment_date'] ?? $created['next_payment_date'] ?? null;
@@ -163,7 +172,9 @@ class MercadoPagoBillingController extends Controller
             $payment = $mp->createPayment($payload);
         } catch (Throwable $e) {
             report($e);
-            abort(502);
+            throw ValidationException::withMessages([
+                'mercadopago' => 'Não foi possível gerar o PIX no Mercado Pago. Tente novamente.',
+            ]);
         }
 
         $paymentId = $payment['id'] ?? null;
@@ -171,7 +182,9 @@ class MercadoPagoBillingController extends Controller
         $qrCodeBase64 = $payment['point_of_interaction']['transaction_data']['qr_code_base64'] ?? null;
 
         if (!$paymentId || !$qrCode) {
-            abort(502);
+            throw ValidationException::withMessages([
+                'mercadopago' => 'Resposta inválida do Mercado Pago ao gerar o PIX.',
+            ]);
         }
 
         return Inertia::location(route('billing.mercadopago.pix', ['id' => $paymentId]));

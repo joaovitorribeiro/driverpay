@@ -231,6 +231,22 @@ class MercadoPagoWebhookController
 
     private function resolveUserFromPayment(array $payment): ?User
     {
+        $metadata = $payment['metadata'] ?? null;
+        if (is_array($metadata)) {
+            $fromMeta = $this->resolveUserFromMetadata($metadata);
+            if ($fromMeta) {
+                return $fromMeta;
+            }
+        }
+
+        $externalReference = $payment['external_reference'] ?? null;
+        if (is_string($externalReference) && trim($externalReference) !== '') {
+            $fromExternal = $this->resolveUserFromExternalReference($externalReference);
+            if ($fromExternal) {
+                return $fromExternal;
+            }
+        }
+
         $email = $payment['payer']['email'] ?? null;
         if (is_string($email) && trim($email) !== '') {
             return User::query()->where('email', $email)->first();
@@ -241,6 +257,10 @@ class MercadoPagoWebhookController
 
     private function processSinglePayment(User $user, array $payment): void
     {
+        if (! $this->isPixOneTimePayment($payment)) {
+            return;
+        }
+
         $status = $payment['status'] ?? null;
         $statusDetail = $payment['status_detail'] ?? null;
 
@@ -259,18 +279,9 @@ class MercadoPagoWebhookController
     {
         $external = $preapproval['external_reference'] ?? null;
         if (is_string($external) && trim($external) !== '') {
-            $parts = explode(';', $external);
-            foreach ($parts as $part) {
-                $trim = trim($part);
-                if (str_starts_with($trim, 'user:')) {
-                    $id = trim(substr($trim, 5));
-                    if ($id !== '') {
-                        return User::query()
-                            ->where('public_id', $id)
-                            ->orWhere('id', $id)
-                            ->first();
-                    }
-                }
+            $fromExternal = $this->resolveUserFromExternalReference($external);
+            if ($fromExternal) {
+                return $fromExternal;
             }
         }
 
@@ -280,6 +291,59 @@ class MercadoPagoWebhookController
         }
 
         return null;
+    }
+
+    private function resolveUserFromMetadata(array $metadata): ?User
+    {
+        $publicId = $metadata['user_public_id'] ?? null;
+        if (is_string($publicId) && trim($publicId) !== '') {
+            return User::query()->where('public_id', $publicId)->first();
+        }
+
+        $userId = $metadata['user_id'] ?? null;
+        if (is_string($userId) && trim($userId) !== '') {
+            return User::query()->where('id', $userId)->first();
+        }
+
+        if (is_int($userId) && $userId > 0) {
+            return User::query()->where('id', $userId)->first();
+        }
+
+        return null;
+    }
+
+    private function resolveUserFromExternalReference(string $external): ?User
+    {
+        $parts = explode(';', $external);
+        foreach ($parts as $part) {
+            $trim = trim($part);
+            if (str_starts_with($trim, 'user:')) {
+                $id = trim(substr($trim, 5));
+                if ($id !== '') {
+                    return User::query()
+                        ->where('public_id', $id)
+                        ->orWhere('id', $id)
+                        ->first();
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private function isPixOneTimePayment(array $payment): bool
+    {
+        $metadata = $payment['metadata'] ?? null;
+        if (is_array($metadata) && ($metadata['kind'] ?? null) === 'pro_pix_30d') {
+            return true;
+        }
+
+        $externalReference = $payment['external_reference'] ?? null;
+        if (is_string($externalReference) && str_contains($externalReference, 'kind:pix')) {
+            return true;
+        }
+
+        return false;
     }
 
     private function upsertSubscription(User $user, array $preapproval): Subscription
