@@ -1,7 +1,7 @@
 import DriverLayout from '@/Layouts/DriverLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import Modal from '@/Components/Modal';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 function PriceCard({ title, price, cadence, highlight, onSelect, badge }) {
     return (
@@ -70,9 +70,17 @@ function PaymentMethodModal({
     isProcessing,
     cpfError,
 }) {
-    const [pixStep, setPixStep] = useState(false);
+    const [selectedMethod, setSelectedMethod] = useState(null);
     const [cpf, setCpf] = useState('');
     const [localCpfError, setLocalCpfError] = useState('');
+
+    useEffect(() => {
+        if (!isOpen) {
+            setSelectedMethod(null);
+            setCpf('');
+            setLocalCpfError('');
+        }
+    }, [isOpen]);
 
     const validateCpf = (value) => {
         const digits = String(value || '').replace(/\D/g, '');
@@ -89,8 +97,17 @@ function PaymentMethodModal({
         onSelectMethod('pix', cpf);
     };
 
+    const cardSelected = selectedMethod === 'card';
+    const pixSelected = selectedMethod === 'pix';
+
+    const cardButtonClass =
+        (cardSelected
+            ? 'border-emerald-400/30 bg-emerald-500/10'
+            : 'border-white/10 bg-white/5 hover:border-emerald-400/30 hover:bg-emerald-500/10') +
+        ' group relative flex items-center justify-between overflow-hidden rounded-2xl border p-4 transition-all';
+
     const pixButtonClass =
-        (pixStep
+        (pixSelected
             ? 'border-emerald-400/30 bg-emerald-500/10'
             : 'border-white/10 bg-white/5 hover:border-emerald-400/30 hover:bg-emerald-500/10') +
         ' group relative flex items-center justify-between overflow-hidden rounded-2xl border p-4 transition-all';
@@ -117,11 +134,11 @@ function PaymentMethodModal({
                 <div className="mt-6 grid gap-3">
                     <button
                         onClick={() => {
-                            setPixStep(false);
-                            onSelectMethod('card');
+                            setSelectedMethod('card');
+                            setLocalCpfError('');
                         }}
                         disabled={isProcessing}
-                        className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 transition-all hover:bg-emerald-500/20"
+                        className={cardButtonClass}
                     >
                         <div className="flex items-center gap-4">
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-emerald-950">
@@ -138,14 +155,32 @@ function PaymentMethodModal({
                                 </div>
                             </div>
                         </div>
-                        <div className="mr-2 text-emerald-400 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div
+                            className={
+                                (cardSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') +
+                                ' mr-2 text-emerald-400 transition-opacity'
+                            }
+                        >
                             ➝
                         </div>
                     </button>
 
+                    {cardSelected ? (
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 animate-in fade-in zoom-in duration-200">
+                            <button
+                                type="button"
+                                onClick={() => onSelectMethod('card')}
+                                disabled={isProcessing}
+                                className="inline-flex h-11 w-full items-center justify-center rounded-full bg-emerald-500 text-sm font-extrabold tracking-wide text-emerald-950 hover:bg-emerald-400 disabled:opacity-60"
+                            >
+                                {isProcessing ? 'Redirecionando...' : 'Continuar com cartão'}
+                            </button>
+                        </div>
+                    ) : null}
+
                     <button
                         onClick={() => {
-                            setPixStep(true);
+                            setSelectedMethod('pix');
                             setLocalCpfError('');
                         }}
                         disabled={isProcessing}
@@ -168,7 +203,7 @@ function PaymentMethodModal({
                         </div>
                         <div
                             className={
-                                (pixStep ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') +
+                                (pixSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') +
                                 ' mr-2 text-emerald-400 transition-opacity'
                             }
                         >
@@ -176,7 +211,7 @@ function PaymentMethodModal({
                         </div>
                     </button>
 
-                    {pixStep ? (
+                    {pixSelected ? (
                         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 animate-in fade-in zoom-in duration-200">
                             <div className="text-xs font-bold uppercase tracking-wider text-white/50">
                                 CPF do pagador
