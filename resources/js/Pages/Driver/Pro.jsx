@@ -62,7 +62,7 @@ function PriceCard({ title, price, cadence, highlight, onSelect, badge }) {
     );
 }
 
-function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod }) {
+function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod, isProcessing }) {
     return (
         <Modal show={isOpen} onClose={onClose}>
             <div className="bg-[#0b1424] p-6 text-white">
@@ -72,6 +72,7 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod }) {
                     </h2>
                     <button
                         onClick={onClose}
+                        disabled={isProcessing}
                         className="rounded-full p-2 text-white/45 hover:bg-white/10 hover:text-white"
                     >
                         ✕
@@ -84,6 +85,7 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod }) {
                 <div className="mt-6 grid gap-3">
                     <button
                         onClick={() => onSelectMethod('card')}
+                        disabled={isProcessing}
                         className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 transition-all hover:bg-emerald-500/20"
                     >
                         <div className="flex items-center gap-4">
@@ -108,6 +110,7 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod }) {
 
                     <button
                         onClick={() => onSelectMethod('pix')}
+                        disabled={isProcessing}
                         className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 transition-all hover:border-emerald-400/30 hover:bg-emerald-500/10"
                     >
                         <div className="flex items-center gap-4">
@@ -141,18 +144,38 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState(null);
+    const [mpError, setMpError] = useState('');
+    const [isPaying, setIsPaying] = useState(false);
 
     const handleSelectPlan = (plan) => {
+        setMpError('');
         setSelectedPlan(plan);
         setIsModalOpen(true);
     };
 
     const handleProceedPayment = (method) => {
-        setIsModalOpen(false);
-        router.post(route('billing.mercadopago.start'), {
-            plan: selectedPlan,
-            method: method,
-        });
+        setMpError('');
+        router.post(
+            route('billing.mercadopago.start'),
+            {
+                plan: selectedPlan,
+                method: method,
+            },
+            {
+                preserveScroll: true,
+                onStart: () => setIsPaying(true),
+                onFinish: () => setIsPaying(false),
+                onSuccess: () => setIsModalOpen(false),
+                onError: (errors) => {
+                    setIsModalOpen(false);
+                    const msg =
+                        errors?.mercadopago ||
+                        errors?.plan ||
+                        'Não foi possível iniciar o pagamento. Tente novamente.';
+                    setMpError(String(msg));
+                },
+            },
+        );
     };
 
     return (
@@ -164,6 +187,7 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
                 onClose={() => setIsModalOpen(false)}
                 plan={selectedPlan}
                 onSelectMethod={handleProceedPayment}
+                isProcessing={isPaying}
             />
 
             <div className="px-4 pb-14 pt-10">
@@ -192,6 +216,12 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
                             você desbloqueia relatórios Mensal/Anual e exportação.
                         </p>
                     </div>
+
+                    {mpError ? (
+                        <div className="mt-4 rounded-[18px] border border-rose-500/25 bg-rose-500/10 p-4 text-sm text-rose-100">
+                            {mpError}
+                        </div>
+                    ) : null}
 
                     {isPro ? (
                         <div className="mt-8 rounded-[26px] border border-emerald-400/30 bg-emerald-500/10 p-6 text-white shadow-2xl shadow-black/35">
