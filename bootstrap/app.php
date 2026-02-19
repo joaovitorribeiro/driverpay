@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -37,6 +38,15 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($e->getStatusCode() !== 419) {
                 return null;
             }
+
+            Log::warning('csrf.token_mismatch', [
+                'method' => $request->method(),
+                'path' => $request->path(),
+                'user_id' => $request->user()?->id,
+                'ip' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'is_inertia' => (bool) $request->header('X-Inertia'),
+            ]);
 
             if (auth()->check()) {
                 auth()->logout();
