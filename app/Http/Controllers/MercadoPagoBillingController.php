@@ -57,13 +57,17 @@ class MercadoPagoBillingController extends Controller
             ? $webhookUrl
             : rtrim(config('app.url'), '/').'/api/webhooks/mercadopago';
 
+        $notificationUrl = trim((string) $notificationUrl);
+        $notificationUrl = str_replace(["`", "\r", "\n", "\t"], '', $notificationUrl);
+        $notificationUrl = trim($notificationUrl, " \"'");
+
         if (! filter_var($notificationUrl, FILTER_VALIDATE_URL)) {
             abort(422);
         }
 
         // Se for PIX, cria pagamento avulso
         if ($method === 'pix') {
-            return $this->startPix($user, $mp, $planConfig, $notificationUrl);
+            return $this->startPix($user, $mp, $plan, $planConfig, $notificationUrl);
         }
 
         // Caso contrário, segue fluxo de assinatura (Card)
@@ -120,19 +124,34 @@ class MercadoPagoBillingController extends Controller
         return Inertia::location($initPoint);
     }
 
-    private function startPix($user, MercadoPagoService $mp, array $planConfig, string $notificationUrl): SymfonyResponse
+    private function startPix($user, MercadoPagoService $mp, string $plan, array $planConfig, string $notificationUrl): SymfonyResponse
     {
         $amount = (float) ($planConfig['transaction_amount'] ?? 9.90);
+        $expiresAt = now()->addMinutes(15);
+        $expiresAtIso = $expiresAt
+            ->copy()
+            ->setTimezone(config('app.timezone') ?: 'UTC')
+            ->format('Y-m-d\\TH:i:sP');
+        $externalReference = $user->public_id
+            ? 'user:'.$user->public_id
+            : 'user:'.$user->id;
         
         $payload = [
             'transaction_amount' => $amount,
             'description' => 'Driver Pay - Plano Pro (PIX 30 dias)',
+            'external_reference' => $externalReference.';plan:'.$plan.';kind:pix',
+            'metadata' => [
+                'kind' => 'pro_pix_30d',
+                'plan' => $plan,
+                'user_id' => $user->id,
+                'user_public_id' => $user->public_id,
+            ],
             'payment_method_id' => 'pix',
             'payer' => [
                 'email' => $user->email,
-                'first_name' => $user->name,
             ],
             'notification_url' => $notificationUrl,
+            'date_of_expiration' => $expiresAtIso,
         ];
 
         try {
@@ -161,15 +180,24 @@ class MercadoPagoBillingController extends Controller
             abort(404);
         }
 
-        $qrCode = $payment['point_of_interaction']['transaction_data']['qr_code'] ?? null;
-        $qrCodeBase64 = $payment['point_of_interaction']['transaction_data']['qr_code_base64'] ?? null;
         $status = $payment['status'] ?? 'pending';
         
         // Verifica se expirou
         $expiresAt = $payment['date_of_expiration'] ?? null;
+        $isExpired = false;
         if ($expiresAt && Carbon::parse($expiresAt)->isPast() && $status === 'pending') {
-             $status = 'cancelled';
+            $status = 'cancelled';
+            $isExpired = true;
         }
+
+        $qrCode = null;
+        $qrCodeBase64 = null;
+        if ($status === 'pending') {
+            $qrCode = $payment['point_of_interaction']['transaction_data']['qr_code'] ?? null;
+            $qrCodeBase64 = $payment['point_of_interaction']['transaction_data']['qr_code_base64'] ?? null;
+        }
+
+        $plan = $payment['metadata']['plan'] ?? null;
 
         return Inertia::render('Driver/MercadoPagoPix', [
             'id' => $id,
@@ -178,6 +206,8 @@ class MercadoPagoBillingController extends Controller
             'status' => $status,
             'amount' => $payment['transaction_amount'] ?? 0,
             'expires_at' => $expiresAt,
+            'plan' => is_string($plan) ? $plan : null,
+            'is_expired' => $isExpired,
         ]);
     }
 
