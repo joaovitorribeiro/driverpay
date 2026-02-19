@@ -248,7 +248,7 @@ class MercadoPagoBillingController extends Controller
         $expiresAtIso = $expiresAt
             ->copy()
             ->setTimezone(config('app.timezone') ?: 'UTC')
-            ->format('Y-m-d\\TH:i:sP');
+            ->format('Y-m-d\\TH:i:sO');
         $externalReference = $user->public_id
             ? 'user:'.$user->public_id
             : 'user:'.$user->id;
