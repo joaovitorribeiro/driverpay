@@ -2,19 +2,21 @@ import DriverLayout from '@/Layouts/DriverLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 
-export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, amount, expires_at }) {
+export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, amount, expires_at, plan, is_expired }) {
     const [copied, setCopied] = useState(false);
     const [currentStatus, setCurrentStatus] = useState(status);
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(qr_code);
+        if (!qr_code) return;
+        navigator.clipboard.writeText(String(qr_code).trim());
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
 
     // Polling para verificar status
     useEffect(() => {
-        if (currentStatus === 'approved') return;
+        const normalized = (currentStatus || '').toLowerCase();
+        if (['approved', 'cancelled', 'rejected', 'refunded', 'charged_back'].includes(normalized)) return;
 
         const interval = setInterval(() => {
             router.reload({
@@ -28,7 +30,11 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
         return () => clearInterval(interval);
     }, [currentStatus]);
 
-    const isApproved = currentStatus === 'approved';
+    const normalized = (currentStatus || '').toLowerCase();
+    const isApproved = normalized === 'approved';
+    const isCancelled = normalized === 'cancelled' || !!is_expired;
+    const effectivePlan = plan === 'annual' ? 'annual' : 'monthly';
+    const hasQr = !!qr_code_base64 && !!qr_code;
 
     return (
         <DriverLayout>
@@ -54,6 +60,37 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
                                 Ir para o Dashboard
                             </Link>
                         </div>
+                    ) : isCancelled ? (
+                        <div className="animate-in fade-in zoom-in duration-500">
+                            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-rose-500/15 text-rose-200 shadow-[0_0_30px_-5px_rgba(244,63,94,0.25)]">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-10 w-10">
+                                    <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm6.97-3.53a.75.75 0 011.06 0L12 10.19l1.72-1.72a.75.75 0 111.06 1.06L13.06 11.25l1.72 1.72a.75.75 0 11-1.06 1.06L12 12.31l-1.72 1.72a.75.75 0 11-1.06-1.06l1.72-1.72-1.72-1.72a.75.75 0 010-1.06z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                            <h2 className="mt-6 text-2xl font-extrabold text-white">PIX inválido</h2>
+                            <p className="mt-2 text-white/65">Esse QR Code expirou ou já foi usado. Gere um novo para pagar.</p>
+
+                            <div className="mt-8 grid gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        router.post(route('billing.mercadopago.start'), {
+                                            plan: effectivePlan,
+                                            method: 'pix',
+                                        })
+                                    }
+                                    className="inline-flex h-12 w-full items-center justify-center rounded-full bg-emerald-500 text-base font-extrabold tracking-wide text-emerald-950 hover:bg-emerald-400"
+                                >
+                                    Gerar novo PIX
+                                </button>
+                                <Link
+                                    href={route('pro')}
+                                    className="inline-flex h-12 w-full items-center justify-center rounded-full bg-white/10 text-base font-extrabold tracking-wide text-white hover:bg-white/15"
+                                >
+                                    Voltar
+                                </Link>
+                            </div>
+                        </div>
                     ) : (
                         <>
                             <div className="mb-6 flex items-center justify-center gap-3 text-white/50">
@@ -71,7 +108,7 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
                             <div className="mt-8 rounded-xl bg-white p-4">
                                 {qr_code_base64 ? (
                                     <img 
-                                        src={`data:image/jpeg;base64,${qr_code_base64}`} 
+                                        src={`data:image/png;base64,${qr_code_base64}`} 
                                         alt="QR Code PIX" 
                                         className="mx-auto h-48 w-48 object-contain"
                                     />
@@ -89,12 +126,13 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
                                 <div className="relative">
                                     <input 
                                         readOnly 
-                                        value={qr_code} 
+                                        value={qr_code || ''} 
                                         className="w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 pr-12 text-xs text-white/70 focus:border-emerald-500/50 focus:ring-0"
                                     />
                                     <button 
                                         onClick={handleCopy}
-                                        className="absolute right-2 top-2 rounded-lg bg-white/10 p-1.5 text-white hover:bg-white/20"
+                                        disabled={!qr_code}
+                                        className="absolute right-2 top-2 rounded-lg bg-white/10 p-1.5 text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
                                         title="Copiar código"
                                     >
                                         {copied ? (
@@ -119,6 +157,10 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
                             <div className="mt-8 text-xs leading-relaxed text-white/40">
                                 Após o pagamento, aguarde alguns segundos nesta tela.<br/>
                                 A confirmação é automática.
+                            </div>
+
+                            <div className="mt-4 text-[11px] font-semibold text-white/40">
+                                {expires_at ? `Expira em: ${new Date(expires_at).toLocaleString()}` : null}
                             </div>
                         </>
                     )}
