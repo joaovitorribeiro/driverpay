@@ -21,13 +21,18 @@ class MercadoPagoWebhookController
         $receivedAt = now();
 
         $eventType = $this->eventType($request);
-        $notification = BillingNotification::create([
-            'provider' => $provider,
-            'event_type' => $eventType,
-            'headers' => $request->headers->all(),
-            'payload' => $request->all(),
-            'received_at' => $receivedAt,
-        ]);
+        $notification = null;
+        try {
+            $notification = BillingNotification::create([
+                'provider' => $provider,
+                'event_type' => $eventType,
+                'headers' => $request->headers->all(),
+                'payload' => $request->all(),
+                'received_at' => $receivedAt,
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         try {
             $secret = config('services.mercadopago.webhook_secret');
@@ -42,10 +47,12 @@ class MercadoPagoWebhookController
                 $request->header('x-request-id'),
                 $dataId,
             )) {
-                $notification->forceFill([
-                    'processed_at' => now(),
-                    'processing_error' => 'invalid_signature',
-                ])->save();
+                if ($notification) {
+                    $notification->forceFill([
+                        'processed_at' => now(),
+                        'processing_error' => 'invalid_signature',
+                    ])->save();
+                }
 
                 return response()->json(['ok' => false], 401);
             }
@@ -71,12 +78,14 @@ class MercadoPagoWebhookController
                     ],
                 ]);
 
-                $notification->forceFill([
-                    'processed_at' => now(),
-                    'processing_error' => null,
-                    'user_id' => $user->id,
-                    'subscription_id' => $subscription->id,
-                ])->save();
+                if ($notification) {
+                    $notification->forceFill([
+                        'processed_at' => now(),
+                        'processing_error' => null,
+                        'user_id' => $user->id,
+                        'subscription_id' => $subscription->id,
+                    ])->save();
+                }
             } elseif ($payment) {
                 $user = $this->resolveUserFromPayment($payment);
                 if (! $user) {
@@ -86,21 +95,25 @@ class MercadoPagoWebhookController
                 // Handle single payment (PIX)
                 $this->processSinglePayment($user, $payment);
 
-                $notification->forceFill([
-                    'processed_at' => now(),
-                    'processing_error' => null,
-                    'user_id' => $user->id,
-                ])->save();
+                if ($notification) {
+                    $notification->forceFill([
+                        'processed_at' => now(),
+                        'processing_error' => null,
+                        'user_id' => $user->id,
+                    ])->save();
+                }
             }
 
             return response()->json(['ok' => true]);
         } catch (Throwable $e) {
             report($e);
 
-            $notification->forceFill([
-                'processed_at' => now(),
-                'processing_error' => mb_substr($e->getMessage(), 0, 2000),
-            ])->save();
+            if ($notification) {
+                $notification->forceFill([
+                    'processed_at' => now(),
+                    'processing_error' => mb_substr($e->getMessage(), 0, 2000),
+                ])->save();
+            }
 
             return response()->json(['ok' => false], 500);
         }
@@ -128,12 +141,17 @@ class MercadoPagoWebhookController
 
     private function dataId(Request $request): ?string
     {
-        $fromQuery = $request->query('data.id') ?? $request->query('id') ?? $request->query('resource');
+        $fromQuery = $request->query('data.id')
+            ?? $request->query('data_id')
+            ?? $request->query('id')
+            ?? $request->query('resource');
         if (is_string($fromQuery) && trim($fromQuery) !== '') {
             return $fromQuery;
         }
 
-        $fromBody = $request->input('data.id') ?? $request->input('id');
+        $fromBody = $request->input('data.id')
+            ?? $request->input('data_id')
+            ?? $request->input('id');
         if (is_string($fromBody) && trim($fromBody) !== '') {
             return $fromBody;
         }
@@ -152,7 +170,7 @@ class MercadoPagoWebhookController
 
         $looksLikePreapproval = str_contains($type, 'preapproval') || str_contains($type, 'subscription_preapproval');
         if ($looksLikePreapproval) {
-            $preapprovalId = $dataId;
+            $preapprovalId = is_string($dataId) ? $this->resourceId($dataId) : null;
             if (! is_string($preapprovalId) || trim($preapprovalId) === '') {
                 throw new RuntimeException('Preapproval id missing.');
             }
@@ -162,7 +180,7 @@ class MercadoPagoWebhookController
 
         $looksLikePayment = str_contains($type, 'payment') || str_contains($type, 'subscription_authorized_payment');
         if ($looksLikePayment) {
-            $paymentId = $dataId;
+            $paymentId = is_string($dataId) ? $this->resourceId($dataId) : null;
             if (! is_string($paymentId) || trim($paymentId) === '') {
                 throw new RuntimeException('Payment id missing.');
             }
@@ -180,7 +198,7 @@ class MercadoPagoWebhookController
         }
 
         if (is_string($dataId) && trim($dataId) !== '') {
-            return [$mp->getPreapproval($dataId), null];
+            return [$mp->getPreapproval($this->resourceId($dataId)), null];
         }
 
         throw new RuntimeException('Unable to resolve resource.');
@@ -313,5 +331,28 @@ class MercadoPagoWebhookController
         }
 
         return null;
+    }
+
+    private function resourceId(string $value): string
+    {
+        $trim = trim($value);
+        if ($trim === '') {
+            return '';
+        }
+
+        $parsed = @parse_url($trim);
+        if (is_array($parsed) && is_string($parsed['path'] ?? null)) {
+            $base = basename($parsed['path']);
+            if (is_string($base) && $base !== '' && $base !== '.') {
+                return $base;
+            }
+        }
+
+        if (str_contains($trim, '/')) {
+            $base = basename($trim);
+            return is_string($base) ? $base : $trim;
+        }
+
+        return $trim;
     }
 }
