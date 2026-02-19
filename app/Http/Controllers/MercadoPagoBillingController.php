@@ -247,8 +247,8 @@ class MercadoPagoBillingController extends Controller
         $expiresAt = now()->addMinutes(15);
         $expiresAtIso = $expiresAt
             ->copy()
-            ->setTimezone(config('app.timezone') ?: 'UTC')
-            ->format('Y-m-d\\TH:i:sO');
+            ->setTimezone('UTC')
+            ->format('Y-m-d\\TH:i:s\\U\\T\\C');
         $externalReference = $user->public_id
             ? 'user:'.$user->public_id
             : 'user:'.$user->id;
@@ -291,6 +291,7 @@ class MercadoPagoBillingController extends Controller
                 'status' => $status,
                 'mp_error' => $mpError,
                 'mp_message' => $mpMessage,
+                'date_of_expiration' => $expiresAtIso,
             ]);
 
             throw ValidationException::withMessages([
@@ -303,6 +304,7 @@ class MercadoPagoBillingController extends Controller
                 'user_id' => $user?->id,
                 'plan' => $plan,
                 'exception' => $e->getMessage(),
+                'date_of_expiration' => $expiresAtIso,
             ]);
 
             throw ValidationException::withMessages([
@@ -321,6 +323,7 @@ class MercadoPagoBillingController extends Controller
                 'plan' => $plan,
                 'has_id' => (bool) $paymentId,
                 'has_qr_code' => (bool) $qrCode,
+                'date_of_expiration' => $expiresAtIso,
             ]);
 
             throw ValidationException::withMessages([
