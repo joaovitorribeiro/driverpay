@@ -35,26 +35,42 @@ class MercadoPagoWebhookController
         }
 
         try {
-            $secret = config('services.mercadopago.webhook_secret');
-            if (! is_string($secret) || trim($secret) === '') {
-                throw new RuntimeException('MP webhook secret not configured.');
-            }
-
             $dataId = $this->dataId($request);
-            if (! MercadoPagoWebhookSignature::verify(
-                $secret,
-                $request->header('x-signature'),
-                $request->header('x-request-id'),
-                $dataId,
-            )) {
+            if (! is_string($dataId) || trim($dataId) === '') {
                 if ($notification) {
                     $notification->forceFill([
                         'processed_at' => now(),
-                        'processing_error' => 'invalid_signature',
+                        'processing_error' => 'missing_data_id',
                     ])->save();
                 }
 
-                return response()->json(['ok' => false], 401);
+                return response()->json(['ok' => true]);
+            }
+
+            $secret = config('services.mercadopago.webhook_secret');
+            $xSignature = $request->header('x-signature');
+            $xRequestId = $request->header('x-request-id');
+
+            $secretConfigured = is_string($secret) && trim($secret) !== '';
+            $hasSignatureHeaders = is_string($xSignature) && trim($xSignature) !== '' && is_string($xRequestId) && trim($xRequestId) !== '';
+
+            if ($secretConfigured && $hasSignatureHeaders) {
+                if (! MercadoPagoWebhookSignature::verify($secret, $xSignature, $xRequestId, $dataId)) {
+                    if ($notification) {
+                        $notification->forceFill([
+                            'processed_at' => now(),
+                            'processing_error' => 'invalid_signature',
+                        ])->save();
+                    }
+
+                    return response()->json(['ok' => true]);
+                }
+            } elseif ($secretConfigured) {
+                if ($notification) {
+                    $notification->forceFill([
+                        'processing_error' => 'missing_signature_headers',
+                    ])->save();
+                }
             }
 
             [$preapproval, $payment] = $this->resolveResources($request, $mp, $dataId);
@@ -115,7 +131,7 @@ class MercadoPagoWebhookController
                 ])->save();
             }
 
-            return response()->json(['ok' => false], 500);
+            return response()->json(['ok' => true]);
         }
     }
 
@@ -166,7 +182,7 @@ class MercadoPagoWebhookController
 
     private function resolveResources(Request $request, MercadoPagoService $mp, ?string $dataId): array
     {
-        $type = $this->eventType($request);
+        $type = mb_strtolower($this->eventType($request));
 
         $looksLikePreapproval = str_contains($type, 'preapproval') || str_contains($type, 'subscription_preapproval');
         if ($looksLikePreapproval) {
@@ -198,6 +214,15 @@ class MercadoPagoWebhookController
         }
 
         if (is_string($dataId) && trim($dataId) !== '') {
+            $hint = $request->query('resource')
+                ?? $request->input('resource')
+                ?? $dataId;
+
+            $hint = is_string($hint) ? mb_strtolower($hint) : '';
+            if (str_contains($hint, 'payment') || str_contains($hint, 'payments')) {
+                return [null, $mp->getPayment($this->resourceId($dataId))];
+            }
+
             return [$mp->getPreapproval($this->resourceId($dataId)), null];
         }
 
