@@ -1,10 +1,15 @@
 import DriverLayout from '@/Layouts/DriverLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 
 export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, amount, expires_at, plan, is_expired }) {
     const [copied, setCopied] = useState(false);
     const [currentStatus, setCurrentStatus] = useState(status);
+    const serverErrors = usePage().props.errors || {};
+    const serverMpError = serverErrors?.mercadopago ? String(serverErrors.mercadopago) : '';
+    const serverCpfError = serverErrors?.cpf ? String(serverErrors.cpf) : '';
+    const [cpf, setCpf] = useState('');
+    const [cpfError, setCpfError] = useState('');
 
     const handleCopy = () => {
         if (!qr_code) return;
@@ -35,6 +40,23 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
     const isCancelled = normalized === 'cancelled' || !!is_expired;
     const effectivePlan = plan === 'annual' ? 'annual' : 'monthly';
     const hasQr = !!qr_code_base64 && !!qr_code;
+    const errorMsg = serverMpError || serverCpfError || cpfError;
+
+    const cpfDigits = (value) => String(value || '').replace(/\D/g, '');
+    const canSubmitCpf = cpfDigits(cpf).length === 11;
+    const submitNewPix = () => {
+        setCpfError('');
+        if (!canSubmitCpf) {
+            setCpfError('Informe um CPF válido (11 dígitos).');
+            return;
+        }
+
+        router.post(route('billing.mercadopago.start'), {
+            plan: effectivePlan,
+            method: 'pix',
+            cpf: cpfDigits(cpf),
+        });
+    };
 
     return (
         <DriverLayout>
@@ -43,6 +65,12 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
             <div className="flex min-h-[80vh] flex-col items-center justify-center px-4 py-12">
                 <div className="w-full max-w-md rounded-[26px] border border-white/10 bg-[#0b1424]/55 p-8 text-center shadow-2xl shadow-black/35 backdrop-blur">
                     
+                    {errorMsg ? (
+                        <div className="mb-6 rounded-[18px] border border-rose-500/25 bg-rose-500/10 p-4 text-sm text-rose-100">
+                            {errorMsg}
+                        </div>
+                    ) : null}
+
                     {isApproved ? (
                         <div className="animate-in fade-in zoom-in duration-500">
                             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 text-emerald-950 shadow-[0_0_30px_-5px_rgba(16,185,129,0.5)]">
@@ -71,14 +99,21 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
                             <p className="mt-2 text-white/65">Esse QR Code expirou ou já foi usado. Gere um novo para pagar.</p>
 
                             <div className="mt-8 grid gap-3">
+                                <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-left">
+                                    <div className="text-xs font-bold uppercase tracking-wider text-white/50">
+                                        CPF do pagador
+                                    </div>
+                                    <input
+                                        value={cpf}
+                                        onChange={(e) => setCpf(e.target.value)}
+                                        inputMode="numeric"
+                                        placeholder="000.000.000-00"
+                                        className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/80 focus:border-emerald-500/50 focus:ring-0"
+                                    />
+                                </div>
                                 <button
                                     type="button"
-                                    onClick={() =>
-                                        router.post(route('billing.mercadopago.start'), {
-                                            plan: effectivePlan,
-                                            method: 'pix',
-                                        })
-                                    }
+                                    onClick={submitNewPix}
                                     className="inline-flex h-12 w-full items-center justify-center rounded-full bg-emerald-500 text-base font-extrabold tracking-wide text-emerald-950 hover:bg-emerald-400"
                                 >
                                     Gerar novo PIX

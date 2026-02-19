@@ -39,7 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            Log::warning('csrf.token_mismatch', [
+            Log::error('csrf.token_mismatch', [
                 'method' => $request->method(),
                 'path' => $request->path(),
                 'user_id' => $request->user()?->id,

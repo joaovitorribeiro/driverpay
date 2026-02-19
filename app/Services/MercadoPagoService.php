@@ -79,4 +79,37 @@ class MercadoPagoService
             ->throw()
             ->json();
     }
+
+    public function listPaymentMethods(): array
+    {
+        return $this->client()
+            ->get('/v1/payment_methods')
+            ->throw()
+            ->json();
+    }
+
+    public function hasPaymentMethod(string $id): bool
+    {
+        $id = trim($id);
+        if ($id === '') {
+            return false;
+        }
+
+        $methods = $this->listPaymentMethods();
+        if (! is_array($methods)) {
+            return false;
+        }
+
+        foreach ($methods as $method) {
+            if (! is_array($method)) {
+                continue;
+            }
+
+            if (($method['id'] ?? null) === $id) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

@@ -44,11 +44,12 @@ class MercadoPagoBillingController extends Controller
         $request->validate([
             'plan' => 'required|in:monthly,annual',
             'method' => 'nullable|in:card,pix',
+            'cpf' => 'nullable|string',
         ]);
 
         $mpEnabled = is_string(config('services.mercadopago.access_token')) && trim((string) config('services.mercadopago.access_token')) !== '';
         if (! $mpEnabled) {
-            Log::warning('mercadopago.start.missing_access_token', [
+            Log::error('mercadopago.start.missing_access_token', [
                 'trace_id' => $traceId,
                 'user_id' => $request->user()?->id,
             ]);
@@ -67,7 +68,7 @@ class MercadoPagoBillingController extends Controller
         $method = $request->string('method')->toString();
         $planConfig = config("mercadopago.plans.{$plan}");
         if (! is_array($planConfig)) {
-            Log::warning('mercadopago.start.invalid_plan', [
+            Log::error('mercadopago.start.invalid_plan', [
                 'trace_id' => $traceId,
                 'user_id' => $user->id,
                 'plan' => $plan,
@@ -89,7 +90,7 @@ class MercadoPagoBillingController extends Controller
         $notificationUrl = trim($notificationUrl, " \"'");
 
         if (! filter_var($notificationUrl, FILTER_VALIDATE_URL)) {
-            Log::warning('mercadopago.start.invalid_notification_url', [
+            Log::error('mercadopago.start.invalid_notification_url', [
                 'trace_id' => $traceId,
                 'user_id' => $user->id,
                 'plan' => $plan,
@@ -104,7 +105,15 @@ class MercadoPagoBillingController extends Controller
 
         // Se for PIX, cria pagamento avulso
         if ($method === 'pix') {
-            return $this->startPix($user, $mp, $plan, $planConfig, $notificationUrl);
+            $cpfDigits = preg_replace('/\D+/', '', (string) $request->input('cpf'));
+            $cpfDigits = is_string($cpfDigits) ? trim($cpfDigits) : '';
+            if ($cpfDigits === '' || strlen($cpfDigits) !== 11) {
+                throw ValidationException::withMessages([
+                    'cpf' => 'Informe um CPF válido (11 dígitos).',
+                ]);
+            }
+
+            return $this->startPix($user, $mp, $plan, $planConfig, $notificationUrl, $cpfDigits);
         }
 
         // Caso contrário, segue fluxo de assinatura (Card)
@@ -135,7 +144,7 @@ class MercadoPagoBillingController extends Controller
             $mpError = is_array($json) && is_string($json['error'] ?? null) ? $json['error'] : null;
 
             report($e);
-            Log::warning('mercadopago.start.preapproval_request_failed', [
+            Log::error('mercadopago.start.preapproval_request_failed', [
                 'trace_id' => $traceId,
                 'user_id' => $user->id,
                 'plan' => $plan,
@@ -149,7 +158,7 @@ class MercadoPagoBillingController extends Controller
             ]);
         } catch (Throwable $e) {
             report($e);
-            Log::warning('mercadopago.start.preapproval_failed', [
+            Log::error('mercadopago.start.preapproval_failed', [
                 'trace_id' => $traceId,
                 'user_id' => $user->id,
                 'plan' => $plan,
@@ -164,7 +173,7 @@ class MercadoPagoBillingController extends Controller
         $preapprovalId = is_string($created['id'] ?? null) ? $created['id'] : null;
         $initPoint = is_string($created['init_point'] ?? null) ? $created['init_point'] : null;
         if (! $preapprovalId || ! $initPoint) {
-            Log::warning('mercadopago.start.preapproval_invalid_response', [
+            Log::error('mercadopago.start.preapproval_invalid_response', [
                 'trace_id' => $traceId,
                 'user_id' => $user->id,
                 'plan' => $plan,
@@ -199,9 +208,40 @@ class MercadoPagoBillingController extends Controller
         return Inertia::location($initPoint);
     }
 
-    private function startPix($user, MercadoPagoService $mp, string $plan, array $planConfig, string $notificationUrl): SymfonyResponse
+    private function startPix($user, MercadoPagoService $mp, string $plan, array $planConfig, string $notificationUrl, string $cpfDigits): SymfonyResponse
     {
         $traceId = (string) Str::uuid();
+
+        $token = config('services.mercadopago.access_token');
+        if (is_string($token) && str_starts_with($token, 'TEST-')) {
+            Log::error('mercadopago.start.pix_test_token', [
+                'trace_id' => $traceId,
+                'user_id' => $user?->id,
+            ]);
+
+            throw ValidationException::withMessages([
+                'mercadopago' => "PIX não pode ser iniciado com token de teste em produção. Use credenciais de produção (APP_USR-...). (código {$traceId})",
+            ]);
+        }
+
+        try {
+            $hasPix = $mp->hasPaymentMethod('pix');
+        } catch (Throwable $e) {
+            report($e);
+            $hasPix = true;
+        }
+
+        if (! $hasPix) {
+            Log::error('mercadopago.start.pix_not_available', [
+                'trace_id' => $traceId,
+                'user_id' => $user?->id,
+                'plan' => $plan,
+            ]);
+
+            throw ValidationException::withMessages([
+                'mercadopago' => "PIX não está habilitado para este access token/conta do Mercado Pago. Verifique se a conta é BR e se PIX está disponível. (código {$traceId})",
+            ]);
+        }
 
         $amount = (float) ($planConfig['transaction_amount'] ?? 9.90);
         $expiresAt = now()->addMinutes(15);
@@ -226,6 +266,10 @@ class MercadoPagoBillingController extends Controller
             'payment_method_id' => 'pix',
             'payer' => [
                 'email' => $user->email,
+                'identification' => [
+                    'type' => 'CPF',
+                    'number' => $cpfDigits,
+                ],
             ],
             'notification_url' => $notificationUrl,
             'date_of_expiration' => $expiresAtIso,
@@ -240,7 +284,7 @@ class MercadoPagoBillingController extends Controller
             $mpError = is_array($json) && is_string($json['error'] ?? null) ? $json['error'] : null;
 
             report($e);
-            Log::warning('mercadopago.start.pix_request_failed', [
+            Log::error('mercadopago.start.pix_request_failed', [
                 'trace_id' => $traceId,
                 'user_id' => $user?->id,
                 'plan' => $plan,
@@ -250,11 +294,11 @@ class MercadoPagoBillingController extends Controller
             ]);
 
             throw ValidationException::withMessages([
-                'mercadopago' => "Não foi possível gerar o PIX no Mercado Pago. (código {$traceId})",
+                'mercadopago' => "Não foi possível gerar o PIX no Mercado Pago. MP: ".trim((string) ($mpMessage ?: $mpError ?: $status ?: 'erro')).". (código {$traceId})",
             ]);
         } catch (Throwable $e) {
             report($e);
-            Log::warning('mercadopago.start.pix_failed', [
+            Log::error('mercadopago.start.pix_failed', [
                 'trace_id' => $traceId,
                 'user_id' => $user?->id,
                 'plan' => $plan,
@@ -271,7 +315,7 @@ class MercadoPagoBillingController extends Controller
         $qrCodeBase64 = $payment['point_of_interaction']['transaction_data']['qr_code_base64'] ?? null;
 
         if (!$paymentId || !$qrCode) {
-            Log::warning('mercadopago.start.pix_invalid_response', [
+            Log::error('mercadopago.start.pix_invalid_response', [
                 'trace_id' => $traceId,
                 'user_id' => $user?->id,
                 'plan' => $plan,

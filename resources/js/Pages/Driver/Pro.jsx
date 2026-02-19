@@ -62,7 +62,33 @@ function PriceCard({ title, price, cadence, highlight, onSelect, badge }) {
     );
 }
 
-function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod, isProcessing }) {
+function PaymentMethodModal({
+    isOpen,
+    onClose,
+    plan,
+    onSelectMethod,
+    isProcessing,
+    cpfError,
+}) {
+    const [pixStep, setPixStep] = useState(false);
+    const [cpf, setCpf] = useState('');
+    const [localCpfError, setLocalCpfError] = useState('');
+
+    const validateCpf = (value) => {
+        const digits = String(value || '').replace(/\D/g, '');
+        return digits.length === 11;
+    };
+
+    const submitPix = () => {
+        setLocalCpfError('');
+        if (!validateCpf(cpf)) {
+            setLocalCpfError('Informe um CPF válido (11 dígitos).');
+            return;
+        }
+
+        onSelectMethod('pix', cpf);
+    };
+
     return (
         <Modal show={isOpen} onClose={onClose}>
             <div className="bg-[#0b1424] p-6 text-white">
@@ -84,7 +110,10 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod, isProcessin
 
                 <div className="mt-6 grid gap-3">
                     <button
-                        onClick={() => onSelectMethod('card')}
+                        onClick={() => {
+                            setPixStep(false);
+                            onSelectMethod('card');
+                        }}
                         disabled={isProcessing}
                         className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 transition-all hover:bg-emerald-500/20"
                     >
@@ -109,7 +138,10 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod, isProcessin
                     </button>
 
                     <button
-                        onClick={() => onSelectMethod('pix')}
+                        onClick={() => {
+                            setPixStep(true);
+                            setLocalCpfError('');
+                        }}
                         disabled={isProcessing}
                         className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 transition-all hover:border-emerald-400/30 hover:bg-emerald-500/10"
                     >
@@ -132,6 +164,34 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod, isProcessin
                             ➝
                         </div>
                     </button>
+
+                    {pixStep ? (
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div className="text-xs font-bold uppercase tracking-wider text-white/50">
+                                CPF do pagador
+                            </div>
+                            <input
+                                value={cpf}
+                                onChange={(e) => setCpf(e.target.value)}
+                                inputMode="numeric"
+                                placeholder="000.000.000-00"
+                                className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/80 focus:border-emerald-500/50 focus:ring-0"
+                            />
+                            {localCpfError || cpfError ? (
+                                <div className="mt-2 text-xs font-semibold text-rose-200">
+                                    {localCpfError || cpfError}
+                                </div>
+                            ) : null}
+                            <button
+                                type="button"
+                                onClick={submitPix}
+                                disabled={isProcessing}
+                                className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-full bg-emerald-500 text-sm font-extrabold tracking-wide text-emerald-950 hover:bg-emerald-400 disabled:opacity-60"
+                            >
+                                Gerar PIX
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
             </div>
         </Modal>
@@ -143,6 +203,7 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
     const mpEnabled = !!mercadopago_billing?.enabled;
     const serverErrors = usePage().props.errors || {};
     const serverMpError = serverErrors?.mercadopago ? String(serverErrors.mercadopago) : '';
+    const serverCpfError = serverErrors?.cpf ? String(serverErrors.cpf) : '';
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState(null);
@@ -155,13 +216,14 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
         setIsModalOpen(true);
     };
 
-    const handleProceedPayment = (method) => {
+    const handleProceedPayment = (method, cpf) => {
         setMpError('');
         router.post(
             route('billing.mercadopago.start'),
             {
                 plan: selectedPlan,
                 method: method,
+                cpf: method === 'pix' ? cpf : undefined,
             },
             {
                 preserveScroll: true,
@@ -172,6 +234,7 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
                     setIsModalOpen(false);
                     const msg =
                         errors?.mercadopago ||
+                        errors?.cpf ||
                         errors?.plan ||
                         'Não foi possível iniciar o pagamento. Tente novamente.';
                     setMpError(String(msg));
@@ -190,6 +253,7 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
                 plan={selectedPlan}
                 onSelectMethod={handleProceedPayment}
                 isProcessing={isPaying}
+                cpfError={serverCpfError}
             />
 
             <div className="px-4 pb-14 pt-10">
