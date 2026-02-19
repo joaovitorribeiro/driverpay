@@ -89,6 +89,12 @@ function PaymentMethodModal({
         onSelectMethod('pix', cpf);
     };
 
+    const pixButtonClass =
+        (pixStep
+            ? 'border-emerald-400/30 bg-emerald-500/10'
+            : 'border-white/10 bg-white/5 hover:border-emerald-400/30 hover:bg-emerald-500/10') +
+        ' group relative flex items-center justify-between overflow-hidden rounded-2xl border p-4 transition-all';
+
     return (
         <Modal show={isOpen} onClose={onClose}>
             <div className="bg-[#0b1424] p-6 text-white">
@@ -143,7 +149,7 @@ function PaymentMethodModal({
                             setLocalCpfError('');
                         }}
                         disabled={isProcessing}
-                        className="group relative flex items-center justify-between overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 transition-all hover:border-emerald-400/30 hover:bg-emerald-500/10"
+                        className={pixButtonClass}
                     >
                         <div className="flex items-center gap-4">
                             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
@@ -160,13 +166,18 @@ function PaymentMethodModal({
                                 </div>
                             </div>
                         </div>
-                        <div className="mr-2 text-emerald-400 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div
+                            className={
+                                (pixStep ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') +
+                                ' mr-2 text-emerald-400 transition-opacity'
+                            }
+                        >
                             ➝
                         </div>
                     </button>
 
                     {pixStep ? (
-                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 animate-in fade-in zoom-in duration-200">
                             <div className="text-xs font-bold uppercase tracking-wider text-white/50">
                                 CPF do pagador
                             </div>
@@ -188,7 +199,7 @@ function PaymentMethodModal({
                                 disabled={isProcessing}
                                 className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-full bg-emerald-500 text-sm font-extrabold tracking-wide text-emerald-950 hover:bg-emerald-400 disabled:opacity-60"
                             >
-                                Gerar PIX
+                                {isProcessing ? 'Gerando...' : 'Gerar PIX'}
                             </button>
                         </div>
                     ) : null}
