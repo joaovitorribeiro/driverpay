@@ -1,5 +1,5 @@
 import DriverLayout from '@/Layouts/DriverLayout';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import Modal from '@/Components/Modal';
 import { useState } from 'react';
 
@@ -141,6 +141,8 @@ function PaymentMethodModal({ isOpen, onClose, plan, onSelectMethod, isProcessin
 export default function Pro({ pricing, google_billing, mercadopago_billing, entitlements }) {
     const isPro = !!entitlements?.is_pro;
     const mpEnabled = !!mercadopago_billing?.enabled;
+    const serverErrors = usePage().props.errors || {};
+    const serverMpError = serverErrors?.mercadopago ? String(serverErrors.mercadopago) : '';
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState(null);
@@ -217,9 +219,9 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
                         </p>
                     </div>
 
-                    {mpError ? (
+                    {mpError || serverMpError ? (
                         <div className="mt-4 rounded-[18px] border border-rose-500/25 bg-rose-500/10 p-4 text-sm text-rose-100">
-                            {mpError}
+                            {mpError || serverMpError}
                         </div>
                     ) : null}
 
