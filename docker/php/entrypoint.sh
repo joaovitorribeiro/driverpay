@@ -4,8 +4,20 @@ set -eu
 DOCKER_MODE="${DOCKER_MODE:-${APP_ENV:-local}}"
 CONTAINER_ROLE="${CONTAINER_ROLE:-app}"
 
-mkdir -p storage bootstrap/cache
-chmod -R ug+rwX storage bootstrap/cache
+umask 002
+
+mkdir -p \
+  storage/framework/cache \
+  storage/framework/sessions \
+  storage/framework/views \
+  storage/logs \
+  bootstrap/cache
+
+if [ "$(id -u)" -eq 0 ] && command -v chown >/dev/null 2>&1; then
+  chown -R www-data:www-data storage bootstrap/cache || true
+fi
+
+chmod -R ug+rwX storage bootstrap/cache || true
 
 if [ "$DOCKER_MODE" = "legacy" ]; then
   exec /usr/local/bin/start-local

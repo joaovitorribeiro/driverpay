@@ -226,21 +226,6 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
                         </div>
                     ) : (
                         <>
-                            <div className="mt-10 rounded-[26px] border border-white/10 bg-[#0b1424]/55 p-6 text-white/80 shadow-2xl shadow-black/35">
-                                <div className="text-base font-extrabold text-white">
-                                    Pagamento via Mercado Pago
-                                </div>
-                                <div className="mt-2 text-sm leading-relaxed text-white/65">
-                                    Assine com cartão/Pix pelo Mercado Pago. O acesso Pro é liberado automaticamente quando o pagamento é autorizado.
-                                </div>
-                                <Link
-                                    href={route('billing.mercadopago.portal')}
-                                    className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-white/10 text-sm font-extrabold tracking-wide text-white hover:bg-white/15"
-                                >
-                                    Ver detalhes da assinatura
-                                </Link>
-                            </div>
-
                             {mpEnabled ? (
                                 <div className="mt-4 grid gap-4">
                                     <PriceCard
@@ -269,6 +254,21 @@ export default function Pro({ pricing, google_billing, mercadopago_billing, enti
                                     </div>
                                 </div>
                             )}
+
+                            <div className="mt-6 rounded-[26px] border border-white/10 bg-[#0b1424]/55 p-6 text-white/80 shadow-2xl shadow-black/35">
+                                <div className="text-base font-extrabold text-white">
+                                    Pagamento via Mercado Pago
+                                </div>
+                                <div className="mt-2 text-sm leading-relaxed text-white/65">
+                                    Assine com cartão/Pix pelo Mercado Pago. O acesso Pro é liberado automaticamente quando o pagamento é autorizado.
+                                </div>
+                                <Link
+                                    href={route('billing.mercadopago.portal')}
+                                    className="mt-5 inline-flex h-11 w-full items-center justify-center rounded-full bg-white/10 text-sm font-extrabold tracking-wide text-white hover:bg-white/15"
+                                >
+                                    Ver detalhes da assinatura
+                                </Link>
+                            </div>
 
                             {/*
                             <div className="mt-8 rounded-[26px] border border-white/10 bg-[#0b1424]/55 p-6 text-white/80 shadow-2xl shadow-black/35">
