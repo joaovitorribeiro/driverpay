@@ -2,7 +2,7 @@ import DriverLayout from '@/Layouts/DriverLayout';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState, useEffect } from 'react';
 
-export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, amount, expires_at, plan, is_expired }) {
+export default function MercadoPagoPix({ id, qr_code, qr_code_base64, ticket_url, status, amount, expires_at, plan, is_expired }) {
     const [copied, setCopied] = useState(false);
     const [currentStatus, setCurrentStatus] = useState(status);
     const serverErrors = usePage().props.errors || {};
@@ -148,11 +148,23 @@ export default function MercadoPagoPix({ id, qr_code, qr_code_base64, status, am
                                         className="mx-auto h-48 w-48 object-contain"
                                     />
                                 ) : (
-                                    <div className="flex h-48 w-48 items-center justify-center text-xs text-black/50">
-                                        Carregando QR Code...
+                                    <div className="flex h-48 w-48 flex-col items-center justify-center gap-3 text-xs text-black/50">
+                                        <div>QR Code indisponível via API.</div>
+                                        <div>Use o Copia e Cola abaixo.</div>
                                     </div>
                                 )}
                             </div>
+                            
+                            {ticket_url ? (
+                                <a
+                                    href={ticket_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-full bg-white/10 text-sm font-extrabold tracking-wide text-white hover:bg-white/15"
+                                >
+                                    Abrir QR no Mercado Pago
+                                </a>
+                            ) : null}
 
                             <div className="mt-6">
                                 <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-white/40">

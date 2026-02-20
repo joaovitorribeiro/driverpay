@@ -354,9 +354,11 @@ class MercadoPagoBillingController extends Controller
 
         $qrCode = null;
         $qrCodeBase64 = null;
+        $ticketUrl = null;
         if ($status === 'pending') {
             $qrCode = $payment['point_of_interaction']['transaction_data']['qr_code'] ?? null;
             $qrCodeBase64 = $payment['point_of_interaction']['transaction_data']['qr_code_base64'] ?? null;
+            $ticketUrl = $payment['point_of_interaction']['transaction_data']['ticket_url'] ?? null;
         }
 
         $plan = $payment['metadata']['plan'] ?? null;
@@ -365,6 +367,7 @@ class MercadoPagoBillingController extends Controller
             'id' => $id,
             'qr_code' => $qrCode,
             'qr_code_base64' => $qrCodeBase64,
+            'ticket_url' => is_string($ticketUrl) ? $ticketUrl : null,
             'status' => $status,
             'amount' => $payment['transaction_amount'] ?? 0,
             'expires_at' => $expiresAt,
