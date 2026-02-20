@@ -247,8 +247,8 @@ class MercadoPagoBillingController extends Controller
         $expiresAt = now()->addMinutes(15);
         $expiresAtIso = $expiresAt
             ->copy()
-            ->setTimezone('UTC')
-            ->format('Y-m-d\\TH:i:s\\U\\T\\C');
+            ->setTimezone(config('app.timezone') ?: 'UTC')
+            ->format('Y-m-d\\TH:i:s.vP');
         $externalReference = $user->public_id
             ? 'user:'.$user->public_id
             : 'user:'.$user->id;
@@ -295,7 +295,7 @@ class MercadoPagoBillingController extends Controller
             ]);
 
             throw ValidationException::withMessages([
-                'mercadopago' => "Não foi possível gerar o PIX no Mercado Pago. MP: ".trim((string) ($mpMessage ?: $mpError ?: $status ?: 'erro')).". (código {$traceId})",
+                'mercadopago' => "Não foi possível gerar o PIX no Mercado Pago. MP: ".trim((string) ($mpMessage ?: $mpError ?: $status ?: 'erro')).". Enviado date_of_expiration={$expiresAtIso}. (código {$traceId})",
             ]);
         } catch (Throwable $e) {
             report($e);
@@ -308,7 +308,7 @@ class MercadoPagoBillingController extends Controller
             ]);
 
             throw ValidationException::withMessages([
-                'mercadopago' => "Não foi possível gerar o PIX no Mercado Pago. (código {$traceId})",
+                'mercadopago' => "Não foi possível gerar o PIX no Mercado Pago. Enviado date_of_expiration={$expiresAtIso}. (código {$traceId})",
             ]);
         }
 
